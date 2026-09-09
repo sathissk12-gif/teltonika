@@ -1,38 +1,37 @@
 /* ==========================================================================
-   TRAXEN TELEMATICS SUITE - Official Traxen Brand Design System
-   Inspired by Traxen Mobile & Web Command Center UI
+   TRAXEN TELEMATICS SUITE - Official Traxen Mobile & Web Design System
+   Exact Traxen App Experience with Full CAN Bus Diagnostics
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Traxen Primary Orange & Amber Brand Palette */
+  /* Traxen Primary Orange & Warm Amber Palette */
   --traxen-primary: #E65100;          /* Deep Traxen Orange */
   --traxen-primary-light: #FF6D00;    /* Vivid Traxen Orange */
-  --traxen-amber: #FF8F00;            /* Warm Amber Accent */
+  --traxen-amber: #FF8F00;            /* Bright Amber */
   --traxen-amber-light: #FFA000;      /* Amber Glow */
+  --traxen-burnt: #BF360C;            /* Burnt Orange */
   --traxen-peach: #FFCCBC;            /* Soft Highlight */
-  --traxen-dark-orange: #BF360C;      /* Burnt Orange */
 
-  /* Traxen Fleet Status Indicators */
+  /* Traxen Status Colors */
   --status-moving: #16A34A;           /* Moving 🟢 */
-  --status-moving-glow: rgba(22, 163, 74, 0.35);
+  --status-moving-glow: rgba(22, 163, 74, 0.4);
   --status-idle: #F59E0B;             /* Idle 🟡 */
-  --status-idle-glow: rgba(245, 158, 11, 0.35);
+  --status-idle-glow: rgba(245, 158, 11, 0.4);
   --status-parking: #EA580C;          /* Stopped/Parked 🅿️ */
-  --status-parking-glow: rgba(234, 88, 12, 0.35);
   --status-offline: #64748B;          /* Offline ⚪ */
-  --status-theft: #EF4444;            /* Theft Alert / Alarm 🚨 */
-  --status-theft-glow: rgba(239, 68, 68, 0.45);
+  --status-theft: #EF4444;            /* Theft / Alert 🚨 */
+  --status-theft-glow: rgba(239, 68, 68, 0.5);
 
   /* Traxen Dark Slate Dashboard Backgrounds */
-  --bg-primary: #090D16;
-  --bg-secondary: #0F172A;
-  --bg-card: rgba(18, 26, 43, 0.75);
-  --bg-card-hover: rgba(24, 34, 56, 0.9);
+  --bg-primary: #070B12;
+  --bg-secondary: #0E1524;
+  --bg-card: rgba(18, 27, 46, 0.85);
+  --bg-card-hover: rgba(26, 38, 64, 0.95);
   --border-glass: rgba(255, 255, 255, 0.08);
-  --border-traxen: rgba(255, 109, 0, 0.25);
-  --border-traxen-glow: rgba(255, 109, 0, 0.45);
+  --border-traxen: rgba(255, 109, 0, 0.28);
+  --border-traxen-glow: rgba(255, 109, 0, 0.55);
 
   /* Text Colors */
   --text-primary: #FFFFFF;
@@ -40,26 +39,27 @@
   --text-muted: #64748B;
   --text-orange: #FF9E43;
 
-  /* Fonts & Radius */
+  /* Typography & Radius */
   --font-main: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
+  --radius-xl: 26px;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --shadow-glow-orange: 0 0 25px rgba(255, 109, 0, 0.28);
-  --shadow-glow-green: 0 0 25px rgba(22, 163, 74, 0.28);
-  --shadow-glow-theft: 0 0 30px rgba(239, 68, 68, 0.4);
+  --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-glow-orange: 0 0 25px rgba(255, 109, 0, 0.35);
+  --shadow-glow-green: 0 0 25px rgba(22, 163, 74, 0.35);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -68,13 +68,14 @@ body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  padding-bottom: 74px; /* Space for mobile bottom nav */
   background-image: 
-    radial-gradient(circle at 10% 15%, rgba(230, 81, 0, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 90% 85%, rgba(255, 143, 0, 0.06) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.5) 0%, transparent 70%);
+    radial-gradient(circle at 10% 10%, rgba(230, 81, 0, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 90% 90%, rgba(255, 143, 0, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(14, 21, 36, 0.6) 0%, transparent 75%);
 }
 
-/* Scrollbar */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -91,397 +92,521 @@ body {
 }
 
 /* ==========================================================================
-   TOP NAVBAR (Traxen App Header)
+   TRAXEN APP BAR (Mobile & Web Masthead)
    ========================================================================== */
-.navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border-bottom: 1px solid var(--border-traxen);
+.traxen-app-header {
+  background: linear-gradient(135deg, #FF8F00 0%, #E65100 50%, #BF360C 100%);
+  padding: 12px 20px;
   position: sticky;
   top: 0;
   z-index: 1000;
+  box-shadow: 0 6px 25px rgba(230, 81, 0, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.nav-brand {
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
-.brand-logo-img {
-  height: 38px;
+.header-logo-img {
+  height: 36px;
   width: auto;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(255, 109, 0, 0.4));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
-.brand-title {
+.header-brand-title {
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 900;
+  color: #FFFFFF;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #FFFFFF 40%, var(--traxen-primary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.brand-badge {
-  font-size: 0.7rem;
+.header-subtitle {
+  font-size: 0.72rem;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 109, 0, 0.15);
-  color: var(--traxen-primary-light);
-  border: 1px solid var(--border-traxen);
+  color: rgba(255, 255, 255, 0.85);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
 
-/* Fleet Vehicle Selector */
-.vehicle-selector-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(24, 34, 56, 0.85);
-  border: 1px solid var(--border-traxen);
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-}
-
-.vehicle-selector-icon {
-  width: 32px;
-  height: 20px;
-  object-fit: contain;
-}
-
-.vehicle-selector-box select {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-family: var(--font-main);
-  font-size: 0.92rem;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-  min-width: 170px;
-}
-
-.vehicle-selector-box select option {
-  background: #111827;
-  color: #fff;
-}
-
-/* Status Chips */
-.nav-status-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.status-chip {
+.header-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.btn-header-add {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+}
+
+.btn-header-add:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Header Search & Quick Switcher */
+.header-search-bar {
+  margin-top: 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.header-search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 14px 8px 36px;
+  color: #FFFFFF;
+  font-family: var(--font-main);
+  font-size: 0.88rem;
+  outline: none;
+  backdrop-filter: blur(10px);
+  transition: border-color 0.2s ease;
+}
+
+.header-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.header-search-input:focus {
+  border-color: #FFFFFF;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.header-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   TRAXEN STATUS FILTER CHIPS (Scrollable Mobile Bar)
+   ========================================================================== */
+.traxen-filter-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(14, 21, 36, 0.95);
+  border-bottom: 1px solid var(--border-glass);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.traxen-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-full);
   font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--status-moving);
-  box-shadow: 0 0 10px var(--status-moving);
-  animation: pulse-dot 2s infinite ease-in-out;
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.25); }
-}
-
-/* ==========================================================================
-   TRAXEN FLEET COUNTER OVERVIEW STRIP
-   ========================================================================== */
-.fleet-summary-strip {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  background: rgba(11, 17, 30, 0.95);
-  border-bottom: 1px solid var(--border-glass);
-  overflow-x: auto;
-}
-
-.fleet-stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: rgba(18, 26, 43, 0.8);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
-  white-space: nowrap;
 }
 
-.fleet-stat-pill:hover, .fleet-stat-pill.active {
-  border-color: var(--traxen-primary-light);
-  background: rgba(230, 81, 0, 0.12);
-  transform: translateY(-1px);
+.traxen-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
-.fleet-stat-count {
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  font-size: 0.78rem;
-  font-weight: 800;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.fleet-stat-pill.all .fleet-stat-count { background: var(--traxen-primary); color: #fff; }
-.fleet-stat-pill.moving .fleet-stat-count { background: var(--status-moving); color: #fff; }
-.fleet-stat-pill.idle .fleet-stat-count { background: var(--status-idle); color: #000; }
-.fleet-stat-pill.parking .fleet-stat-count { background: var(--status-parking); color: #fff; }
-.fleet-stat-pill.offline .fleet-stat-count { background: var(--status-offline); color: #fff; }
-
-/* ==========================================================================
-   NAVIGATION TABS
-   ========================================================================== */
-.tabs-nav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
-  background: rgba(15, 23, 42, 0.6);
-  border-bottom: 1px solid var(--border-glass);
-  overflow-x: auto;
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 18px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  font-family: var(--font-main);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  white-space: nowrap;
-}
-
-.tab-btn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.tab-btn.active {
+.traxen-chip.active {
+  background: linear-gradient(135deg, var(--traxen-primary), var(--traxen-primary-light));
+  border-color: transparent;
   color: #FFFFFF;
-  background: linear-gradient(135deg, rgba(230, 81, 0, 0.25), rgba(255, 109, 0, 0.15));
-  border-color: var(--border-traxen);
-  box-shadow: 0 4px 15px rgba(230, 81, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(230, 81, 0, 0.35);
+}
+
+.traxen-chip-count {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 /* ==========================================================================
-   ALERT BANNER (Traxen Real-time Theft / Refuel Notification)
+   TRAXEN VEHICLE CARDS FEED (Mobile App View)
    ========================================================================== */
-.alert-banner-container {
-  padding: 0 24px;
-  margin-top: 14px;
-}
-
-.alert-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 18px;
-  border-radius: var(--radius-md);
-  margin-bottom: 10px;
-  animation: slide-in 0.3s ease-out;
-  box-shadow: var(--shadow-card);
-}
-
-@keyframes slide-in {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.alert-banner.THEFT {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.1));
-  border: 1px solid var(--status-theft);
-  box-shadow: var(--shadow-glow-theft);
-}
-
-.alert-banner.REFUEL {
-  background: linear-gradient(90deg, rgba(22, 163, 74, 0.25), rgba(22, 163, 74, 0.1));
-  border: 1px solid var(--status-moving);
-  box-shadow: var(--shadow-glow-green);
-}
-
-.alert-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-.alert-title {
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.alert-banner.THEFT .alert-title { color: var(--status-theft); }
-.alert-banner.REFUEL .alert-title { color: var(--status-moving); }
-
-/* ==========================================================================
-   MAIN DASHBOARD LAYOUT & GLASS CARDS
-   ========================================================================== */
-.main-content {
-  padding: 18px 24px;
-  max-width: 1720px;
-  margin: 0 auto;
-}
-
-.tab-pane {
-  display: none;
-}
-
-.tab-pane.active {
-  display: block;
-}
-
-.grid-dashboard {
+.vehicle-cards-feed {
   display: grid;
-  grid-template-columns: 1fr 410px;
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  padding: 18px;
 }
 
-@media (max-width: 1200px) {
-  .grid-dashboard {
-    grid-template-columns: 1fr;
-  }
-}
-
-.glass-card {
+.traxen-vehicle-card {
   background: var(--bg-card);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: 20px;
+  border-radius: var(--radius-xl);
+  padding: 18px;
   box-shadow: var(--shadow-card);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.25s ease;
   position: relative;
   overflow: hidden;
 }
 
-.glass-card:hover {
-  border-color: var(--border-traxen);
+.traxen-vehicle-card:hover, .traxen-vehicle-card.selected {
+  border-color: var(--border-traxen-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px -10px rgba(230, 81, 0, 0.3);
 }
 
-.card-header {
+.card-top-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
 }
 
-.card-title {
-  font-size: 1.05rem;
-  font-weight: 700;
+.card-vehicle-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--text-primary);
+  gap: 12px;
 }
 
-.card-title-icon {
-  width: 22px;
-  height: 22px;
+.card-vehicle-icon-box {
+  width: 50px;
+  height: 50px;
+  background: #111827;
+  border: 1.5px solid var(--border-traxen);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.card-vehicle-icon-img {
+  width: 38px;
+  height: 38px;
   object-fit: contain;
 }
 
-/* Ignition Pill */
-.pill-status {
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  font-size: 0.75rem;
+.card-plate-number {
+  font-size: 1.15rem;
   font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.3px;
+}
+
+.card-model-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Status Badges */
+.traxen-status-badge {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.traxen-status-badge.MOVING {
+  background: rgba(22, 163, 74, 0.2);
+  color: #22C55E;
+  border: 1px solid var(--status-moving);
+}
+
+.traxen-status-badge.IDLE {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+  border: 1px solid var(--status-idle);
+}
+
+.traxen-status-badge.PARKED {
+  background: rgba(234, 88, 12, 0.2);
+  color: #FB923C;
+  border: 1px solid var(--status-parking);
+}
+
+.traxen-status-badge.OFFLINE {
+  background: rgba(100, 116, 139, 0.2);
+  color: #94A3B8;
+  border: 1px solid var(--status-offline);
+}
+
+/* Ignition Indicator */
+.ignition-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ignition-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ignition-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.ignition-led.on {
+  background: var(--status-moving);
+  box-shadow: 0 0 10px var(--status-moving);
+  animation: pulse-dot 1.8s infinite;
+}
+
+.ignition-led.off {
+  background: var(--text-muted);
+}
+
+/* Fuel Progress Bar */
+.card-fuel-section {
+  margin-bottom: 14px;
+}
+
+.fuel-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.fuel-progress-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.fuel-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--traxen-amber) 0%, var(--traxen-primary-light) 100%);
+  border-radius: var(--radius-full);
+  transition: width 0.8s ease;
+  box-shadow: 0 0 10px rgba(255, 109, 0, 0.5);
+}
+
+/* Quick Metrics Row */
+.card-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.card-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.card-metric-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 700;
   text-transform: uppercase;
 }
 
-.pill-status.on {
-  background: rgba(22, 163, 74, 0.2);
-  color: var(--status-moving);
-  border: 1px solid var(--status-moving);
-  box-shadow: 0 0 10px rgba(22, 163, 74, 0.25);
+.card-metric-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  margin-top: 2px;
 }
 
-.pill-status.off {
-  background: rgba(100, 116, 139, 0.2);
-  color: var(--text-muted);
-  border: 1px solid rgba(100, 116, 139, 0.3);
+/* Card Action Buttons */
+.card-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-card-action {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-card-action:hover {
+  background: rgba(255, 109, 0, 0.15);
+  border-color: var(--border-traxen);
+  color: var(--traxen-primary-light);
+}
+
+.btn-card-action.primary {
+  background: linear-gradient(135deg, var(--traxen-primary), var(--traxen-primary-light));
+  border: none;
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(230, 81, 0, 0.3);
 }
 
 /* ==========================================================================
-   LEAFLET MAP & TRAXEN VEHICLE MARKER
+   COMPREHENSIVE CAN BUS TELEMETRY CLUSTERS
    ========================================================================== */
-.map-container {
-  height: 440px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  position: relative;
+.can-clusters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 18px;
+}
+
+.can-cluster-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
+}
+
+.cluster-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--traxen-amber);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 8px;
+}
+
+.cluster-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.can-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.86rem;
+}
+
+.can-item-label {
+  color: var(--text-secondary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.can-item-val {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.can-item-val.highlight {
+  color: var(--traxen-primary-light);
+}
+
+.can-item-val.active {
+  color: var(--status-moving);
+}
+
+.can-item-val.inactive {
+  color: var(--text-muted);
+}
+
+/* ==========================================================================
+   LEAFLET MAP & VEHICLE MARKER (Mobile Fullscreen Support)
+   ========================================================================== */
+.map-view-layout {
+  position: relative;
+  height: calc(100vh - 145px);
+  min-height: 480px;
+  overflow: hidden;
 }
 
 #leafletMap {
   height: 100%;
   width: 100%;
-  background: #0B0F19;
+  background: #070B12;
 }
 
-/* Dark Mode Tile Inversion */
 .leaflet-tile-pane {
-  filter: brightness(0.68) invert(1) contrast(3.2) hue-rotate(200deg) saturate(0.35);
+  filter: brightness(0.7) invert(1) contrast(3.2) hue-rotate(200deg) saturate(0.35);
 }
 
-.map-overlay-stats {
+/* Map Drawer (Slide-up Vehicle Details) */
+.map-drawer-card {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 400;
-  display: flex;
-  gap: 8px;
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(10px);
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-glass);
-  font-size: 0.8rem;
-  font-weight: 600;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  max-width: 580px;
+  margin: 0 auto;
+  z-index: 500;
+  background: rgba(14, 21, 36, 0.95);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--border-traxen);
+  border-radius: var(--radius-xl);
+  padding: 16px 20px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), var(--shadow-glow-orange);
+  transition: transform 0.3s ease;
 }
 
-/* Custom Traxen Vehicle Marker */
 .traxen-map-marker {
   position: relative;
   display: flex;
@@ -525,202 +650,60 @@ body {
 }
 
 /* ==========================================================================
-   KPI METRICS GRID
+   TRAXEN MOBILE BOTTOM NAVIGATION BAR
    ========================================================================== */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.kpi-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.2s ease;
-}
-
-.kpi-card:hover {
-  background: rgba(255, 109, 0, 0.05);
-  border-color: var(--border-traxen);
-}
-
-.kpi-label {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.kpi-value {
-  font-size: 1.35rem;
-  font-weight: 800;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-}
-
-.kpi-value small {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  font-family: var(--font-main);
-  margin-left: 2px;
-}
-
-/* ==========================================================================
-   ANIMATED FUEL TANK GAUGE (Traxen Calibrated)
-   ========================================================================== */
-.fuel-gauge-container {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  padding: 10px 0;
-}
-
-.tank-visual {
-  width: 100px;
-  height: 220px;
-  background: rgba(11, 17, 30, 0.9);
-  border: 2px solid var(--border-traxen);
-  border-radius: 14px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), var(--shadow-glow-orange);
-}
-
-.tank-liquid {
-  position: absolute;
+.traxen-bottom-nav {
+  position: fixed;
   bottom: 0;
   left: 0;
-  width: 100%;
-  height: 70%;
-  background: linear-gradient(180deg, var(--traxen-amber-light) 0%, var(--traxen-primary) 100%);
-  transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 20px rgba(255, 109, 0, 0.5);
+  right: 0;
+  height: 64px;
+  background: rgba(11, 17, 30, 0.98);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-glass);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 1200;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.5);
 }
 
-.tank-liquid.low {
-  background: linear-gradient(180deg, #ff5252 0%, var(--status-theft) 100%);
-  box-shadow: 0 0 20px var(--status-theft);
-}
-
-.tank-grid-lines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.bottom-nav-item {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 10px 6px;
-  pointer-events: none;
-}
-
-.grid-mark {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
-  font-family: var(--font-mono);
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
-  padding-bottom: 2px;
-}
-
-.fuel-stats-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.fuel-big-stat {
-  display: flex;
-  flex-direction: column;
-}
-
-.fuel-liters-hero {
-  font-size: 2.5rem;
-  font-weight: 900;
-  font-family: var(--font-mono);
-  background: linear-gradient(135deg, #FFFFFF, var(--traxen-primary-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  line-height: 1.1;
-}
-
-.fuel-pct-sub {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--traxen-amber);
-}
-
-/* ==========================================================================
-   BUTTONS & FORMS
-   ========================================================================== */
-.btn-primary {
-  background: linear-gradient(135deg, var(--traxen-primary), var(--traxen-primary-light));
-  color: #FFFFFF;
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 10px 20px;
-  font-family: var(--font-main);
-  font-size: 0.9rem;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(230, 81, 0, 0.35);
-  transition: all 0.25s ease;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-}
-
-.btn-primary:hover {
-  box-shadow: 0 6px 20px rgba(255, 109, 0, 0.5);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-md);
-  padding: 10px 18px;
-  font-family: var(--font-main);
-  font-size: 0.9rem;
-  font-weight: 600;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: var(--border-traxen);
-}
-
-.btn-icon-danger {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--status-theft);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--radius-md);
   padding: 6px 12px;
-  font-size: 0.85rem;
-  cursor: pointer;
+  border-radius: var(--radius-md);
   transition: all 0.2s ease;
+  flex: 1;
 }
 
-.btn-icon-danger:hover {
-  background: rgba(239, 68, 68, 0.3);
+.bottom-nav-item span.icon {
+  font-size: 1.25rem;
+  transition: transform 0.2s ease;
+}
+
+.bottom-nav-item:hover {
+  color: var(--text-primary);
+}
+
+.bottom-nav-item.active {
+  color: var(--traxen-primary-light);
+}
+
+.bottom-nav-item.active span.icon {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 2px 8px rgba(255, 109, 0, 0.6));
 }
 
 /* ==========================================================================
-   MODAL DIALOG (Traxen Vehicle Registration)
+   MODALS & DIALOGS
    ========================================================================== */
 .modal-overlay {
   position: fixed;
@@ -734,26 +717,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: fade-in 0.2s ease;
+  padding: 16px;
 }
 
 .modal-card {
   background: #111827;
   border: 1px solid var(--border-traxen);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  width: 90%;
-  max-width: 520px;
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), var(--shadow-glow-orange);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .form-label {
   display: block;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -777,20 +762,19 @@ body {
   border-color: var(--traxen-primary-light);
 }
 
-/* Vehicle Category Selector Grid in Modal */
 .category-picker-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .category-option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 6px;
+  gap: 4px;
+  padding: 8px 4px;
   background: #1A2234;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
@@ -804,17 +788,81 @@ body {
 }
 
 .category-option img {
-  width: 36px;
-  height: 24px;
+  width: 34px;
+  height: 22px;
   object-fit: contain;
 }
 
 .category-option span {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--text-secondary);
 }
 
 .category-option.selected span {
   color: var(--traxen-primary-light);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--traxen-primary), var(--traxen-primary-light));
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(230, 81, 0, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Alert Banner */
+.alert-banner-container {
+  padding: 0 18px;
+  margin-top: 12px;
+}
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.alert-banner.THEFT {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.1));
+  border: 1px solid var(--status-theft);
+}
+
+.alert-banner.REFUEL {
+  background: linear-gradient(90deg, rgba(22, 163, 74, 0.25), rgba(22, 163, 74, 0.1));
+  border: 1px solid var(--status-moving);
+}
+
+/* Tab Panes */
+.tab-pane {
+  display: none;
+}
+.tab-pane.active {
+  display: block;
 }

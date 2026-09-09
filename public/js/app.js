@@ -1,42 +1,37 @@
 /**
- * Traxen Telematics Suite - Main Application Controller
- * Official Traxen Fleet & Vehicle Tracking Architecture
+ * Traxen Telematics Suite - Main Mobile & Web Application Controller
+ * Official Traxen Mobile App UI Experience with Complete CAN Diagnostics
  */
 
 let currentDeviceImei = null;
 let allDevices = [];
 let filteredDevices = [];
 let currentFleetFilter = 'ALL';
+let searchQuery = '';
 let selectedNewVehicleCategory = 'OPEN TRUCK';
 let ws = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  initTabs();
   initWebSocket();
   loadDevices();
 });
 
-// Tab Switching
-function initTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      tabBtns.forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+// Switch Tab (Bottom Navigation & Desktop Tabs)
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => btn.classList.remove('active'));
 
-      btn.classList.add('active');
-      const targetId = btn.getAttribute('data-tab');
-      const targetPane = document.getElementById(targetId);
-      if (targetPane) targetPane.classList.add('active');
+  const targetPane = document.getElementById(tabId);
+  if (targetPane) targetPane.classList.add('active');
 
-      // Trigger map resize when switching to map tab
-      if (targetId === 'tabMap' && window.MapController) {
-        setTimeout(() => {
-          if (window.map) window.map.invalidateSize();
-        }, 150);
-      }
-    });
-  });
+  const navItem = document.querySelector(`.bottom-nav-item[data-tab="${tabId}"]`);
+  if (navItem) navItem.classList.add('active');
+
+  if (tabId === 'tabMap' && window.MapController) {
+    setTimeout(() => {
+      if (window.map) window.map.invalidateSize();
+    }, 150);
+  }
 }
 
 // Icon Helper: maps vehicle category and status to official Traxen icon asset path
@@ -50,6 +45,15 @@ function getVehicleIconPath(category = 'OPEN TRUCK', status = 'moving') {
   return `assets/icons/vehicle/sideview/${stat}/${cat}.png`;
 }
 
+// Determine vehicle status mode
+function getVehicleStatusMode(dev) {
+  if (!dev || dev.status !== 'ONLINE') return 'OFFLINE';
+  const tel = dev.lastTelemetry || {};
+  if (tel.speed > 0) return 'MOVING';
+  if (tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1) return 'IDLE';
+  return 'PARKED';
+}
+
 // Load Devices from Server
 function loadDevices() {
   fetch('/api/devices')
@@ -58,13 +62,18 @@ function loadDevices() {
       if (data.success) {
         allDevices = data.data || [];
         updateFleetCounters();
-        applyFleetFilter(currentFleetFilter);
+        applyFleetFilters();
+        populateCanDeviceSelect();
+        
+        if (allDevices.length > 0 && !currentDeviceImei) {
+          selectDevice(allDevices[0].imei);
+        }
       }
     })
     .catch(err => console.error('Error loading devices:', err));
 }
 
-// Update Traxen Fleet Overview Counters (Total, Moving, Idle, Parked, Offline)
+// Update Fleet Summary Counters
 function updateFleetCounters() {
   let total = allDevices.length;
   let moving = 0;
@@ -73,20 +82,11 @@ function updateFleetCounters() {
   let offline = 0;
 
   allDevices.forEach(dev => {
-    const isOnline = dev.status === 'ONLINE';
-    const tel = dev.lastTelemetry || {};
-    const speed = tel.speed || 0;
-    const ignition = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1;
-
-    if (!isOnline) {
-      offline++;
-    } else if (speed > 0) {
-      moving++;
-    } else if (ignition) {
-      idle++;
-    } else {
-      parked++;
-    }
+    const mode = getVehicleStatusMode(dev);
+    if (mode === 'MOVING') moving++;
+    else if (mode === 'IDLE') idle++;
+    else if (mode === 'PARKED') parked++;
+    else offline++;
   });
 
   const elTotal = document.getElementById('statFleetTotal');
@@ -102,97 +102,143 @@ function updateFleetCounters() {
   if (elOffline) elOffline.innerText = offline;
 }
 
-// Filter fleet by status pill click
+// Search Handler
+function handleSearch(query) {
+  searchQuery = query.toLowerCase().trim();
+  applyFleetFilters();
+}
+
+// Filter fleet by status chip click
 function filterFleet(type) {
   currentFleetFilter = type;
-  document.querySelectorAll('.fleet-stat-pill').forEach(pill => pill.classList.remove('active'));
-  const activePill = document.querySelector(`.fleet-stat-pill.${type.toLowerCase()}`);
-  if (activePill) activePill.classList.add('active');
-  applyFleetFilter(type);
+  document.querySelectorAll('.traxen-chip').forEach(c => c.classList.remove('active'));
+  const activeChip = document.querySelector(`.traxen-chip.${type.toLowerCase()}`);
+  if (activeChip) activeChip.classList.add('active');
+  applyFleetFilters();
 }
 
-function applyFleetFilter(type) {
-  if (type === 'ALL') {
-    filteredDevices = [...allDevices];
-  } else if (type === 'MOVING') {
-    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && d.lastTelemetry && d.lastTelemetry.speed > 0);
-  } else if (type === 'IDLE') {
-    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && d.lastTelemetry && (d.lastTelemetry.ignition === true || d.lastTelemetry.ignition === 1) && (!d.lastTelemetry.speed || d.lastTelemetry.speed === 0));
-  } else if (type === 'PARKED') {
-    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && (!d.lastTelemetry || !d.lastTelemetry.ignition) && (!d.lastTelemetry || !d.lastTelemetry.speed || d.lastTelemetry.speed === 0));
-  } else if (type === 'OFFLINE') {
-    filteredDevices = allDevices.filter(d => d.status !== 'ONLINE');
-  }
+function applyFleetFilters() {
+  filteredDevices = allDevices.filter(d => {
+    const mode = getVehicleStatusMode(d);
+    const matchesFilter = currentFleetFilter === 'ALL' || mode === currentFleetFilter;
+    const matchesSearch = !searchQuery || 
+      (d.vehicleNumber && d.vehicleNumber.toLowerCase().includes(searchQuery)) ||
+      (d.model && d.model.toLowerCase().includes(searchQuery)) ||
+      (d.imei && d.imei.includes(searchQuery));
 
-  populateDeviceDropdown(filteredDevices);
+    return matchesFilter && matchesSearch;
+  });
 
-  if (filteredDevices.length > 0) {
-    // If current selected device is still in the filtered list, keep it; else select first
-    const exists = filteredDevices.some(d => d.imei === currentDeviceImei);
-    if (!exists) {
-      selectDevice(filteredDevices[0].imei);
-    }
-  } else {
-    showEmptyDeviceState();
-  }
+  renderVehicleCards();
 }
 
-function populateDeviceDropdown(devices) {
-  const select = document.getElementById('deviceSelect');
-  const btnDelete = document.getElementById('btnDeleteDevice');
-  if (!select) return;
+// Render Traxen Vehicle Cards in Tab 1
+function renderVehicleCards() {
+  const container = document.getElementById('vehiclesCardsFeed');
+  if (!container) return;
 
-  select.innerHTML = '';
-  if (devices.length === 0) {
-    const opt = document.createElement('option');
-    opt.value = '';
-    opt.innerText = '(No matching vehicles)';
-    select.appendChild(opt);
-    if (btnDelete) btnDelete.style.display = 'none';
+  if (filteredDevices.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; background: var(--bg-card); border-radius: var(--radius-xl); border: 1px solid var(--border-glass);">
+        <div style="font-size: 2.5rem; margin-bottom: 12px;">🚗</div>
+        <div style="font-size: 1.1rem; font-weight: 800; color: #fff;">No Vehicles Found</div>
+        <div style="font-size: 0.84rem; color: var(--text-muted); margin-top: 4px;">Click "+ Add Vehicle" above to register a tracker.</div>
+      </div>
+    `;
     return;
   }
 
-  devices.forEach(dev => {
-    const opt = document.createElement('option');
-    opt.value = dev.imei;
-    opt.innerText = `${dev.vehicleNumber} (${dev.model || 'Traxen Tracker'})`;
-    select.appendChild(opt);
-  });
+  container.innerHTML = filteredDevices.map(dev => {
+    const mode = getVehicleStatusMode(dev);
+    const tel = dev.lastTelemetry || {};
+    const speed = tel.speed || 0;
+    const isIgnOn = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1;
+    const isSelected = dev.imei === currentDeviceImei;
 
-  if (btnDelete) btnDelete.style.display = 'inline-block';
+    const statusModeLower = mode === 'MOVING' ? 'moving' : (mode === 'IDLE' ? 'idle' : (mode === 'PARKED' ? 'parking' : 'nodata'));
+    const iconSrc = getVehicleIconPath(dev.category || 'OPEN TRUCK', statusModeLower);
 
-  select.onchange = (e) => {
-    selectDevice(e.target.value);
-  };
-}
+    const fuelPct = tel.fuelPercentage !== undefined && tel.fuelPercentage !== null ? tel.fuelPercentage : 0;
+    const fuelLiters = tel.fuelLiters !== undefined && tel.fuelLiters !== null 
+      ? tel.fuelLiters 
+      : ((fuelPct / 100) * (dev.tankCapacity || 480)).toFixed(1);
 
-function showEmptyDeviceState() {
-  currentDeviceImei = null;
-  const modelElem = document.getElementById('selectedVehicleModel');
-  if (modelElem) modelElem.innerText = 'No vehicles registered • Connect tracker to Port 5023';
+    const speedDisplay = mode === 'MOVING' ? `MOVING ${speed} km/h` : mode;
 
-  const statusDot = document.getElementById('mainStatusDot');
-  const statusText = document.getElementById('mainStatusText');
-  if (statusDot && statusText) {
-    statusDot.className = 'status-dot';
-    statusText.innerText = 'TCP Port 5023 Active';
-  }
+    return `
+      <div class="traxen-vehicle-card ${isSelected ? 'selected' : ''}" onclick="App.selectDevice('${dev.imei}')">
+        <!-- Top Info Row -->
+        <div class="card-top-row">
+          <div class="card-vehicle-info">
+            <div class="card-vehicle-icon-box">
+              <img src="${iconSrc}" class="card-vehicle-icon-img" alt="${dev.category}">
+            </div>
+            <div>
+              <div class="card-plate-number">${dev.vehicleNumber}</div>
+              <div class="card-model-text">${dev.model || 'Traxen Tracker'} • ${dev.category || 'Vehicle'}</div>
+            </div>
+          </div>
+          <div class="traxen-status-badge ${mode}">
+            <span>${mode === 'MOVING' ? '🟢' : (mode === 'IDLE' ? '🟡' : (mode === 'PARKED' ? '🅿️' : '⚪'))}</span>
+            <span>${speedDisplay}</span>
+          </div>
+        </div>
 
-  const navIcon = document.getElementById('navVehicleIcon');
-  if (navIcon) navIcon.src = getVehicleIconPath('OPEN TRUCK', 'nodata');
+        <!-- Ignition Status -->
+        <div class="ignition-row">
+          <div class="ignition-pill">
+            <div class="ignition-led ${isIgnOn ? 'on' : 'off'}"></div>
+            <span style="color: ${isIgnOn ? 'var(--status-moving)' : 'var(--text-muted)'};">${isIgnOn ? 'IGNITION ON' : 'IGNITION OFF'}</span>
+          </div>
+          <span style="font-family: var(--font-mono); color: var(--traxen-amber); font-size: 0.75rem;">IMEI: ${dev.imei.slice(-6)}</span>
+        </div>
 
-  if (window.GaugesController) {
-    window.GaugesController.updateGauges({
-      speed: 0,
-      engineRpm: 0,
-      odometerKm: 0,
-      coolantTemp: 0,
-      batteryVoltage: 0,
-      fuelPercentage: 0,
-      fuelLiters: 0,
-      ignition: false
-    }, 480);
-  }
+        <!-- Fuel Progress Bar -->
+        <div class="card-fuel-section">
+          <div class="fuel-bar-labels">
+            <span style="color: var(--text-secondary);">Fuel Level</span>
+            <span style="font-family: var(--font-mono); color: var(--traxen-primary-light);">${fuelPct}% • ${fuelLiters} L</span>
+          </div>
+          <div class="fuel-progress-track">
+            <div class="fuel-progress-fill" style="width: ${Math.min(Math.max(fuelPct, 0), 100)}%;"></div>
+          </div>
+        </div>
+
+        <!-- Key CAN Metrics Grid -->
+        <div class="card-metrics-grid">
+          <div class="card-metric-box">
+            <div class="card-metric-label">RPM</div>
+            <div class="card-metric-val">${tel.engineRpm || 0}</div>
+          </div>
+          <div class="card-metric-box">
+            <div class="card-metric-label">Coolant</div>
+            <div class="card-metric-val">${tel.coolantTemp || 0}°C</div>
+          </div>
+          <div class="card-metric-box">
+            <div class="card-metric-label">Battery</div>
+            <div class="card-metric-val">${tel.externalVoltage || tel.batteryVoltage || 0}V</div>
+          </div>
+          <div class="card-metric-box">
+            <div class="card-metric-label">Odo</div>
+            <div class="card-metric-val">${tel.odometerKm ? (tel.odometerKm > 1000 ? (tel.odometerKm/1000).toFixed(0)+'k' : tel.odometerKm) : '0'}</div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card-actions-row">
+          <button class="btn-card-action primary" onclick="event.stopPropagation(); App.trackVehicleOnMap('${dev.imei}')">
+            <span>📍</span> Track Live
+          </button>
+          <button class="btn-card-action" onclick="event.stopPropagation(); App.openVehicleCan('${dev.imei}')">
+            <span>📊</span> CAN Bus
+          </button>
+          <button class="btn-card-action" style="color: var(--status-theft);" onclick="event.stopPropagation(); App.sendRemoteCommand('setdigout 1 0', '${dev.imei}')">
+            <span>🛑</span> Lock
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function selectDevice(imei) {
@@ -200,26 +246,18 @@ function selectDevice(imei) {
   const dev = allDevices.find(d => d.imei === imei);
   if (!dev) return;
 
-  const select = document.getElementById('deviceSelect');
-  if (select && select.value !== imei) select.value = imei;
+  renderVehicleCards();
 
-  const btnDelete = document.getElementById('btnDeleteDevice');
-  if (btnDelete) btnDelete.style.display = 'inline-block';
+  // Update CAN tab dropdown & labels
+  const canSelect = document.getElementById('canDeviceSelect');
+  if (canSelect && canSelect.value !== imei) canSelect.value = imei;
 
-  const isOnline = dev.status === 'ONLINE';
-  const tel = dev.lastTelemetry || {};
-  const statusMode = isOnline ? (tel.speed > 0 ? 'moving' : (tel.ignition ? 'idle' : 'parking')) : 'nodata';
+  const canPlate = document.getElementById('canSelectedPlate');
+  const canModel = document.getElementById('canSelectedModel');
+  if (canPlate) canPlate.innerText = `${dev.vehicleNumber} (${dev.category || 'Vehicle'})`;
+  if (canModel) canModel.innerText = `${dev.model} • IMEI: ${dev.imei}`;
 
-  // Update Traxen Sideview Icon in Navbar
-  const navIcon = document.getElementById('navVehicleIcon');
-  if (navIcon) {
-    navIcon.src = getVehicleIconPath(dev.category || 'OPEN TRUCK', statusMode);
-  }
-
-  // Update Header Badges
-  const modelElem = document.getElementById('selectedVehicleModel');
-  if (modelElem) modelElem.innerText = `${dev.model} • ${dev.tankCapacity}L Tank • ${dev.category || 'Vehicle'}`;
-
+  // Update Fuel Source Badge
   const sourceBadge = document.getElementById('fuelSourceBadge');
   if (sourceBadge) {
     sourceBadge.innerText = dev.fuelSource === 'ANALOG_AIN1' 
@@ -227,11 +265,25 @@ function selectDevice(imei) {
       : (dev.fuelSource === 'CAN_LITERS' ? 'Direct CAN Liters (AVL 84)' : 'CAN Bus % (AVL 83)');
   }
 
-  const statusDot = document.getElementById('mainStatusDot');
-  const statusText = document.getElementById('mainStatusText');
-  if (statusDot && statusText) {
-    statusDot.className = `status-dot ${isOnline ? '' : 'offline'}`;
-    statusText.innerText = isOnline ? 'TCP Port 5023 Online' : 'Device Offline';
+  // Update Slide-up Map Drawer
+  const mapDrawer = document.getElementById('mapVehicleDrawer');
+  if (mapDrawer) mapDrawer.style.display = 'block';
+
+  const drawerPlate = document.getElementById('drawerPlateNumber');
+  const drawerModel = document.getElementById('drawerModelText');
+  const drawerBadge = document.getElementById('drawerStatusBadge');
+  const drawerIcon = document.getElementById('drawerVehicleIcon');
+
+  const mode = getVehicleStatusMode(dev);
+  if (drawerPlate) drawerPlate.innerText = dev.vehicleNumber;
+  if (drawerModel) drawerModel.innerText = `${dev.model} • ${dev.tankCapacity}L Tank`;
+  if (drawerBadge) {
+    drawerBadge.className = `traxen-status-badge ${mode}`;
+    drawerBadge.innerText = mode;
+  }
+  if (drawerIcon) {
+    const statusModeLower = mode === 'MOVING' ? 'moving' : (mode === 'IDLE' ? 'idle' : (mode === 'PARKED' ? 'parking' : 'nodata'));
+    drawerIcon.src = getVehicleIconPath(dev.category || 'OPEN TRUCK', statusModeLower);
   }
 
   // Update Telemetry & Gauges
@@ -256,6 +308,33 @@ function selectDevice(imei) {
   }
 }
 
+function trackVehicleOnMap(imei) {
+  selectDevice(imei);
+  switchTab('tabMap');
+}
+
+function openVehicleCan(imei) {
+  selectDevice(imei);
+  switchTab('tabCan');
+}
+
+function populateCanDeviceSelect() {
+  const canSelect = document.getElementById('canDeviceSelect');
+  if (!canSelect) return;
+
+  canSelect.innerHTML = '';
+  allDevices.forEach(dev => {
+    const opt = document.createElement('option');
+    opt.value = dev.imei;
+    opt.innerText = `${dev.vehicleNumber} (${dev.model || 'Tracker'})`;
+    canSelect.appendChild(opt);
+  });
+
+  if (currentDeviceImei) {
+    canSelect.value = currentDeviceImei;
+  }
+}
+
 // Modal Management
 function openAddDeviceModal() {
   const modal = document.getElementById('addDeviceModal');
@@ -272,7 +351,7 @@ function selectCategory(cat, elem) {
   document.querySelectorAll('#categoryPicker .category-option').forEach(el => el.classList.remove('selected'));
   if (elem) elem.classList.add('selected');
 
-  // Auto-fill sensible default tank capacities based on category
+  // Sensible default tank capacity
   const tankInput = document.getElementById('inputTankCap');
   if (tankInput) {
     if (cat === 'BIKE') tankInput.value = 15;
@@ -329,41 +408,12 @@ function saveNewDevice() {
   .catch(err => alert('Network error: ' + err.message));
 }
 
-function deleteCurrentDevice() {
-  if (!currentDeviceImei) return;
-  const dev = allDevices.find(d => d.imei === currentDeviceImei);
-  const name = dev ? dev.vehicleNumber : currentDeviceImei;
-
-  if (!confirm(`Are you sure you want to delete vehicle "${name}"?`)) {
-    return;
-  }
-
-  fetch(`/api/devices/${currentDeviceImei}`, {
-    method: 'DELETE'
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (data.success) {
-      loadDevices();
-    } else {
-      alert('Error deleting device: ' + data.error);
-    }
-  })
-  .catch(err => alert('Network error: ' + err.message));
-}
-
-// WebSocket Real-time Listener
+// WebSocket Listener
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
   ws = new WebSocket(wsUrl);
-
-  ws.onopen = () => {
-    console.log('[WS] Connected to Live Telematics Stream');
-    const wsBadge = document.getElementById('wsStatusText');
-    if (wsBadge) wsBadge.innerText = 'WebSocket Connected';
-  };
 
   ws.onmessage = (event) => {
     try {
@@ -375,9 +425,6 @@ function initWebSocket() {
   };
 
   ws.onclose = () => {
-    console.warn('[WS] Disconnected, reconnecting in 3s...');
-    const wsBadge = document.getElementById('wsStatusText');
-    if (wsBadge) wsBadge.innerText = 'Reconnecting...';
     setTimeout(initWebSocket, 3000);
   };
 }
@@ -386,13 +433,13 @@ function handleWebSocketMessage(msg) {
   if (msg.event === 'telemetry') {
     const { imei, data } = msg.data;
     
-    // Update memory device telemetry
     const dev = allDevices.find(d => d.imei === imei);
     if (dev) {
       dev.lastTelemetry = data;
       dev.status = 'ONLINE';
     }
     updateFleetCounters();
+    renderVehicleCards();
 
     if (imei === currentDeviceImei) {
       if (window.MapController) {
@@ -419,38 +466,38 @@ function showAlertBanner(alert) {
   const banner = document.createElement('div');
   banner.className = `alert-banner ${isTheft ? 'THEFT' : 'REFUEL'}`;
   banner.innerHTML = `
-    <div class="alert-content">
-      <span style="font-size: 1.4rem;">${isTheft ? '🚨' : '⛽'}</span>
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 0.88rem; font-weight: 700;">
+      <span style="font-size: 1.3rem;">${isTheft ? '🚨' : '⛽'}</span>
       <div>
-        <span class="alert-title">${alert.title} [${alert.vehicleNumber}]</span>
-        <div style="font-size: 0.84rem; opacity: 0.9; margin-top: 2px;">${alert.message} • Coordinates: ${alert.lat}, ${alert.lng}</div>
+        <span style="color: ${isTheft ? 'var(--status-theft)' : 'var(--status-moving)'}; text-transform: uppercase;">${alert.title} [${alert.vehicleNumber}]</span>
+        <div style="font-size: 0.78rem; opacity: 0.9; margin-top: 1px;">${alert.message}</div>
       </div>
     </div>
-    <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="this.closest('.alert-banner').remove()">✕</button>
+    <button class="btn-secondary" style="padding: 3px 8px; font-size: 0.75rem;" onclick="this.closest('.alert-banner').remove()">✕</button>
   `;
 
   container.innerHTML = '';
   container.appendChild(banner);
 
-  // Auto dismiss after 15 seconds
   setTimeout(() => {
     if (banner.parentElement) banner.remove();
   }, 15000);
 }
 
 // Remote Codec 12 Command Dispatcher
-function sendRemoteCommand(cmdText) {
-  if (!currentDeviceImei) return;
+function sendRemoteCommand(cmdText, targetImei = null) {
+  const imei = targetImei || currentDeviceImei;
+  if (!imei) return;
 
   const input = document.getElementById('customCommandInput');
   const command = cmdText || (input ? input.value : '');
   if (!command) return;
 
   if (window.SimulatorController) {
-    window.SimulatorController.logTerminal(`[Dispatching Codec 12] ➡️ "${command}" to ${currentDeviceImei}...`, 'cmd');
+    window.SimulatorController.logTerminal(`[Dispatching Codec 12] ➡️ "${command}" to ${imei}...`, 'cmd');
   }
 
-  fetch(`/api/devices/${currentDeviceImei}/command`, {
+  fetch(`/api/devices/${imei}/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command })
@@ -459,7 +506,7 @@ function sendRemoteCommand(cmdText) {
   .then(data => {
     if (data.success) {
       if (window.SimulatorController) {
-        window.SimulatorController.logTerminal(`[Success] Packet transmitted to device TCP socket.`, 'resp');
+        window.SimulatorController.logTerminal(`[Success] Packet transmitted to device socket.`, 'resp');
       }
     } else {
       if (window.SimulatorController) {
@@ -477,12 +524,15 @@ function sendRemoteCommand(cmdText) {
 }
 
 window.App = {
+  switchTab,
   selectDevice,
   filterFleet,
+  handleSearch,
+  trackVehicleOnMap,
+  openVehicleCan,
   selectCategory,
   sendRemoteCommand,
   openAddDeviceModal,
   closeAddDeviceModal,
-  saveNewDevice,
-  deleteCurrentDevice
+  saveNewDevice
 };

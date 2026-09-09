@@ -2,167 +2,385 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Traxen Telematics | Live GPS & CAN Command Center</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Traxen GPS & CAN Telematics | Command Center</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   
-  <!-- Traxen Brand Design System CSS -->
+  <!-- Traxen Design System CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Top Navbar (Traxen App Header) -->
-  <nav class="navbar">
-    <div class="nav-brand">
-      <img src="assets/logo/logo.png" alt="Traxen" class="brand-logo-img" onerror="this.style.display='none'">
-      <div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="brand-title">TRAXEN TELEMATICS</span>
-          <span class="brand-badge">FMX150 • CODEC 8 EXT</span>
+  <!-- =========================================================================
+       TRAXEN APP HEADER (Mobile & Web Navigation)
+       ========================================================================= -->
+  <header class="traxen-app-header">
+    <div class="header-top-row">
+      <div class="header-brand">
+        <img src="assets/logo/logo.png" alt="Traxen" class="header-logo-img" onerror="this.style.display='none'">
+        <div>
+          <div class="header-brand-title">TRAXEN</div>
+          <div class="header-subtitle">TELEMATICS COMMAND CENTER</div>
         </div>
-        <div id="selectedVehicleModel" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">
-          Select or register a vehicle to begin live tracking
-        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn-header-add" onclick="App.openAddDeviceModal()">
+          <span>➕</span> Add Vehicle
+        </button>
       </div>
     </div>
 
-    <!-- Vehicle Selector & Management -->
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <div class="vehicle-selector-box">
-        <img id="navVehicleIcon" src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" class="vehicle-selector-icon" alt="Vehicle">
-        <select id="deviceSelect">
-          <option value="">(No vehicles registered)</option>
-        </select>
-      </div>
-      <button class="btn-primary" style="padding: 7px 14px; font-size: 0.82rem;" onclick="App.openAddDeviceModal()">+ Add Vehicle</button>
-      <button class="btn-icon-danger" id="btnDeleteDevice" title="Delete current vehicle" onclick="App.deleteCurrentDevice()" style="display: none;">🗑️</button>
+    <!-- Quick Vehicle Search Bar -->
+    <div class="header-search-bar">
+      <span class="header-search-icon">🔍</span>
+      <input type="text" id="vehicleSearchInput" class="header-search-input" placeholder="Search vehicle by number, model, or IMEI..." oninput="App.handleSearch(this.value)">
     </div>
+  </header>
 
-    <!-- Connection Status Badges -->
-    <div class="nav-status-group">
-      <div class="status-chip">
-        <div id="mainStatusDot" class="status-dot"></div>
-        <span id="mainStatusText">TCP 5023 Active</span>
-      </div>
-      <div class="status-chip">
-        <span id="wsStatusText" style="color: var(--traxen-amber-light);">WebSocket Live</span>
-      </div>
+  <!-- =========================================================================
+       TRAXEN FLEET STATUS FILTER CHIPS (Scrollable Mobile Bar)
+       ========================================================================= -->
+  <div class="traxen-filter-strip">
+    <div class="traxen-chip all active" onclick="App.filterFleet('ALL')">
+      <span>All Vehicles</span>
+      <span id="statFleetTotal" class="traxen-chip-count">0</span>
     </div>
-  </nav>
-
-  <!-- Fleet Overview Summary Strip (Traxen App Style) -->
-  <div class="fleet-summary-strip">
-    <div class="fleet-stat-pill all active" onclick="App.filterFleet('ALL')">
-      <span>Fleet Total</span>
-      <span id="statFleetTotal" class="fleet-stat-count">0</span>
+    <div class="traxen-chip moving" onclick="App.filterFleet('MOVING')">
+      <span>🟢 Running</span>
+      <span id="statFleetMoving" class="traxen-chip-count">0</span>
     </div>
-    <div class="fleet-stat-pill moving" onclick="App.filterFleet('MOVING')">
-      <span>🟢 Running / Moving</span>
-      <span id="statFleetMoving" class="fleet-stat-count">0</span>
+    <div class="traxen-chip idle" onclick="App.filterFleet('IDLE')">
+      <span>🟡 Idle</span>
+      <span id="statFleetIdle" class="traxen-chip-count">0</span>
     </div>
-    <div class="fleet-stat-pill idle" onclick="App.filterFleet('IDLE')">
-      <span>🟡 Idle (Ignition ON)</span>
-      <span id="statFleetIdle" class="fleet-stat-count">0</span>
+    <div class="traxen-chip parking" onclick="App.filterFleet('PARKED')">
+      <span>🅿️ Stopped</span>
+      <span id="statFleetParked" class="traxen-chip-count">0</span>
     </div>
-    <div class="fleet-stat-pill parking" onclick="App.filterFleet('PARKED')">
-      <span>🅿️ Stopped / Parked</span>
-      <span id="statFleetParked" class="fleet-stat-count">0</span>
-    </div>
-    <div class="fleet-stat-pill offline" onclick="App.filterFleet('OFFLINE')">
+    <div class="traxen-chip offline" onclick="App.filterFleet('OFFLINE')">
       <span>⚪ Offline</span>
-      <span id="statFleetOffline" class="fleet-stat-count">0</span>
+      <span id="statFleetOffline" class="traxen-chip-count">0</span>
     </div>
-  </div>
-
-  <!-- Navigation Tabs -->
-  <div class="tabs-nav">
-    <button class="tab-btn active" data-tab="tabMap">
-      <span>🗺️</span> Live Map & Telemetry
-    </button>
-    <button class="tab-btn" data-tab="tabCalibration">
-      <span>⛽</span> Diesel Calibration Studio
-    </button>
-    <button class="tab-btn" data-tab="tabWireframe">
-      <span>🚗</span> 2D Vehicle Wireframe
-    </button>
-    <button class="tab-btn" data-tab="tabCommands">
-      <span>⚡</span> Remote Commands (Codec 12)
-    </button>
-    <button class="tab-btn" data-tab="tabSimulator">
-      <span>🕹️</span> Trip Simulator & Hex Inspector
-    </button>
   </div>
 
   <!-- Real-time Alert Banner Container -->
   <div id="alertBannerContainer" class="alert-banner-container"></div>
 
-  <!-- Main Content Body -->
-  <main class="main-content">
+  <!-- =========================================================================
+       MAIN CONTENT TABS
+       ========================================================================= -->
+  <main>
 
-    <!-- =========================================================================
-         TAB 1: LIVE MAP & CAN TELEMETRY CLUSTER
-         ========================================================================= -->
-    <div id="tabMap" class="tab-pane active">
-      <div class="grid-dashboard">
-        
-        <!-- Left: Live Map Card -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>📍</span> Live Vehicle Location & Trajectory
+    <!-- -------------------------------------------------------------------------
+         TAB 1: VEHICLES (Traxen Vehicle Cards Feed)
+         ------------------------------------------------------------------------- -->
+    <div id="tabVehicles" class="tab-pane active">
+      <div id="vehiclesCardsFeed" class="vehicle-cards-feed">
+        <!-- Dynamically rendered via App.renderVehicleCards() -->
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------------------------
+         TAB 2: LIVE MAP (Interactive Vehicle Tracking)
+         ------------------------------------------------------------------------- -->
+    <div id="tabMap" class="tab-pane">
+      <div class="map-view-layout">
+        <div id="leafletMap"></div>
+
+        <!-- Slide-up Bottom Vehicle Drawer -->
+        <div id="mapVehicleDrawer" class="map-drawer-card" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <img id="drawerVehicleIcon" src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" style="width: 38px; height: 26px; object-fit: contain;">
+              <div>
+                <div id="drawerPlateNumber" style="font-size: 1.1rem; font-weight: 800; color: #fff;">--</div>
+                <div id="drawerModelText" style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">--</div>
+              </div>
             </div>
-            <div id="pillIgnition" class="pill-status off">IGNITION OFF</div>
+            <div id="drawerStatusBadge" class="traxen-status-badge OFFLINE">OFFLINE</div>
           </div>
 
-          <div class="map-container">
-            <div id="leafletMap"></div>
-            <div class="map-overlay-stats">
-              <span id="mapSatellites">🛰️ 0 Sats</span>
-              <span id="mapGpsFix" style="color: var(--status-moving);">🟢 Ready</span>
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;">
+            <div class="card-metric-box">
+              <div class="card-metric-label">Speed</div>
+              <div id="drawerSpeed" class="card-metric-val">0 km/h</div>
+            </div>
+            <div class="card-metric-box">
+              <div class="card-metric-label">Fuel (Calib)</div>
+              <div id="drawerFuel" class="card-metric-val">0 L</div>
+            </div>
+            <div class="card-metric-box">
+              <div class="card-metric-label">Engine RPM</div>
+              <div id="drawerRpm" class="card-metric-val">0 RPM</div>
+            </div>
+            <div class="card-metric-box">
+              <div class="card-metric-label">Battery</div>
+              <div id="drawerBattery" class="card-metric-val">0.0 V</div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Bottom KPI Metrics -->
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <span class="kpi-label">Vehicle Speed</span>
-              <span id="kpiSpeed" class="kpi-value">0 <small>km/h</small></span>
+    <!-- -------------------------------------------------------------------------
+         TAB 3: COMPREHENSIVE CAN BUS DIAGNOSTICS (85+ CAN Parameters)
+         ------------------------------------------------------------------------- -->
+    <div id="tabCan" class="tab-pane">
+      <div style="padding: 14px 18px 0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 12px 18px; border-radius: var(--radius-lg); border: 1px solid var(--border-traxen);">
+          <div>
+            <div id="canSelectedPlate" style="font-size: 1.15rem; font-weight: 900; color: #fff;">Select Vehicle</div>
+            <div id="canSelectedModel" style="font-size: 0.78rem; color: var(--traxen-amber); font-weight: 600;">Live CAN Protocol Engine (Codec 8 Extended)</div>
+          </div>
+          <select id="canDeviceSelect" class="form-control" style="width: auto; min-width: 170px;" onchange="App.selectDevice(this.value)">
+            <!-- Options populated dynamically -->
+          </select>
+        </div>
+      </div>
+
+      <div class="can-clusters-grid">
+
+        <!-- 1. Engine & Powertrain CAN -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>⚙️</span> Engine & Powertrain CAN
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">Engine Speed (RPM)</span>
+              <span id="canRpm" class="can-item-val highlight">0 RPM</span>
             </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Engine RPM</span>
-              <span id="kpiRpm" class="kpi-value">0 <small>RPM</small></span>
+            <div class="can-item-row">
+              <span class="can-item-label">Engine Load</span>
+              <span id="canEngineLoad" class="can-item-val">0 %</span>
             </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Total Odometer</span>
-              <span id="kpiOdometer" class="kpi-value">0 <small>km</small></span>
+            <div class="can-item-row">
+              <span class="can-item-label">Coolant Temperature</span>
+              <span id="canCoolant" class="can-item-val">0 °C</span>
             </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Coolant Temp</span>
-              <span id="kpiCoolant" class="kpi-value">0 <small>°C</small></span>
+            <div class="can-item-row">
+              <span class="can-item-label">Accelerator Pedal</span>
+              <span id="canPedal" class="can-item-val">0 %</span>
             </div>
-            <div class="kpi-card">
-              <span class="kpi-label">Battery Voltage</span>
-              <span id="kpiBattery" class="kpi-value">0.0 <small>V</small></span>
+            <div class="can-item-row">
+              <span class="can-item-label">Engine Oil Pressure</span>
+              <span id="canOilPressure" class="can-item-val">-- bar</span>
             </div>
-            <div class="kpi-card">
-              <span class="kpi-label">AdBlue Level</span>
-              <span id="kpiAdBlue" class="kpi-value">-- <small>%</small></span>
+            <div class="can-item-row">
+              <span class="can-item-label">Engine Oil Temperature</span>
+              <span id="canOilTemp" class="can-item-val">-- °C</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Total Engine Hours</span>
+              <span id="canEngineHours" class="can-item-val">0.0 h</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Current Gear</span>
+              <span id="canGear" class="can-item-val">N</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Power Take-Off (PTO)</span>
+              <span id="canPto" class="can-item-val inactive">OFF</span>
             </div>
           </div>
         </div>
 
-        <!-- Right: Animated Fuel Tank Gauge & Diagnostics -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>⛽</span> Smart Fuel Gauge (Traxen Engine)
+        <!-- 2. Fuel, DEF & Emissions CAN -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>⛽</span> Fuel, DEF & Emissions CAN
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">Calibrated Fuel Volume</span>
+              <span id="canFuelLiters" class="can-item-val highlight" style="color: var(--traxen-amber-light); font-size: 1.1rem;">0.0 L</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Fuel Level (%)</span>
+              <span id="canFuelPct" class="can-item-val">0 %</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Direct CAN Liters (AVL 84)</span>
+              <span id="canDirectLiters" class="can-item-val">-- L</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Fuel Consumption Rate</span>
+              <span id="canFuelRate" class="can-item-val">0.0 L/h</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Total Fuel Consumed</span>
+              <span id="canTotalFuel" class="can-item-val">0.0 L</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">AdBlue / DEF Level</span>
+              <span id="canAdBlue" class="can-item-val">-- %</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">CNG Rate / Used</span>
+              <span id="canCng" class="can-item-val">-- kg</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Next Service Distance</span>
+              <span id="canServiceDist" class="can-item-val">-- km</span>
             </div>
           </div>
+        </div>
 
-          <div class="fuel-gauge-container">
-            <!-- Animated Liquid Tank Graphic -->
+        <!-- 3. Body, Electrical & Comfort CAN -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>⚡</span> Electrical & Body Controls
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">Ignition (DIN1 / CAN)</span>
+              <span id="canIgnition" class="can-item-val inactive">OFF</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">External Power Battery</span>
+              <span id="canExtVolt" class="can-item-val highlight">0.0 V</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Backup Internal Battery</span>
+              <span id="canIntVolt" class="can-item-val">0.0 V</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Air Conditioner (AC)</span>
+              <span id="canAc" class="can-item-val inactive">OFF</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Handbrake (Parking)</span>
+              <span id="canHandbrake" class="can-item-val inactive">RELEASED</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Foot Brake</span>
+              <span id="canFootBrake" class="can-item-val inactive">OFF</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Cruise Control</span>
+              <span id="canCruise" class="can-item-val inactive">OFF</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Driver Seatbelt</span>
+              <span id="canSeatbelt" class="can-item-val active">FASTENED</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Ambient Temperature</span>
+              <span id="canAmbientTemp" class="can-item-val">-- °C</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Heavy Vehicle & Axle Load CAN -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>🚛</span> Axle Weight & Truck Load
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">Axle 1 Weight</span>
+              <span id="canAxle1" class="can-item-val">-- kg</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Axle 2 Weight</span>
+              <span id="canAxle2" class="can-item-val">-- kg</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Axle 3 Weight</span>
+              <span id="canAxle3" class="can-item-val">-- kg</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Air Suspension Pressure</span>
+              <span id="canAirSuspension" class="can-item-val">-- bar</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Retarder Torque</span>
+              <span id="canRetarder" class="can-item-val">-- %</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Electric Vehicle (EV) CAN -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>🔋</span> Electric Vehicle (EV) CAN
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">EV Battery SoC</span>
+              <span id="canEvSoc" class="can-item-val">-- %</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">EV Battery Voltage</span>
+              <span id="canEvVolt" class="can-item-val">-- V</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">EV Battery Current</span>
+              <span id="canEvCurrent" class="can-item-val">-- A</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">EV Motor Temp</span>
+              <span id="canEvMotorTemp" class="can-item-val">-- °C</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Remaining EV Range</span>
+              <span id="canEvRange" class="can-item-val">-- km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. Diagnostic Trouble Codes & Security -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>🛡️</span> Security & Fault Diagnostics
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">DTC Fault Codes</span>
+              <span id="canDtc" class="can-item-val active" style="color: var(--status-moving);">0 Codes (Healthy)</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">GNSS Satellites</span>
+              <span id="canSats" class="can-item-val highlight">0 Sats</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">GSM Signal Strength</span>
+              <span id="canGsm" class="can-item-val">-- CSQ</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Power Unplug / Tamper</span>
+              <span id="canTamper" class="can-item-val active" style="color: var(--status-moving);">Secure</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Towing / Crash Status</span>
+              <span id="canTowing" class="can-item-val active" style="color: var(--status-moving);">Normal</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">Vehicle VIN / Chassis</span>
+              <span id="canVin" class="can-item-val">--</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------------------------
+         TAB 4: DIESEL & FUEL CALIBRATION STUDIO
+         ------------------------------------------------------------------------- -->
+    <div id="tabFuel" class="tab-pane">
+      <div class="can-clusters-grid" style="grid-template-columns: 1fr 1fr;">
+        
+        <!-- Animated Fuel Gauge Card -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>⛽</span> Calibrated Fuel Tank
+          </div>
+
+          <div style="display: flex; gap: 20px; align-items: center; padding: 14px 0;">
             <div class="tank-visual">
               <div id="tankLiquid" class="tank-liquid" style="height: 0%;"></div>
               <div class="tank-grid-lines">
@@ -174,61 +392,47 @@
               </div>
             </div>
 
-            <!-- Readout Values -->
-            <div class="fuel-stats-panel">
-              <div class="fuel-big-stat">
-                <span class="kpi-label">Calibrated Volume</span>
-                <span id="fuelLitersVal" class="fuel-liters-hero">0.0 L</span>
-                <span id="fuelPercentVal" class="fuel-pct-sub">0% Full</span>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+              <div>
+                <div class="card-metric-label">Calibrated Volume</div>
+                <div id="fuelLitersVal" class="fuel-liters-hero">0.0 L</div>
+                <div id="fuelPercentVal" class="fuel-pct-sub">0% Full</div>
               </div>
               <div style="background: rgba(255, 255, 255, 0.03); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
-                <div style="font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Estimated Range</div>
+                <div class="card-metric-label">Estimated Range</div>
                 <div id="fuelRangeVal" style="font-family: var(--font-mono); font-size: 1.15rem; font-weight: 800; color: var(--traxen-primary-light);">~0 km</div>
               </div>
             </div>
           </div>
 
-          <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-glass);">
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 700; text-transform: uppercase;">
-              Theft & Refuel Protection
+          <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-glass);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 8px;">
+              Fuel Theft Guard
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.86rem; margin-bottom: 8px;">
-              <span style="color: var(--text-secondary);">Parking Theft Guard:</span>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 6px;">
+              <span style="color: var(--text-secondary);">Parking Theft Mode:</span>
               <span style="color: var(--status-moving); font-weight: 700;">Active 🛡️ (&gt;5L drop)</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.86rem;">
-              <span style="color: var(--text-secondary);">Sensor Input Source:</span>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+              <span style="color: var(--text-secondary);">Input Sensor:</span>
               <span id="fuelSourceBadge" style="color: var(--traxen-amber); font-weight: 700;">CAN Bus % (AVL 83)</span>
             </div>
           </div>
         </div>
 
-      </div>
-    </div>
-
-
-    <!-- =========================================================================
-         TAB 2: DIESEL CALIBRATION STUDIO
-         ========================================================================= -->
-    <div id="tabCalibration" class="tab-pane">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        
-        <!-- Left: Multi-point Table Editor -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>📐</span> Multi-Point Calibration Table
-            </div>
-            <button class="btn-secondary" onclick="CalibrationStudio.addCalibrationRow()">+ Add Point</button>
+        <!-- Calibration Curve & Presets -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>📐</span> Multi-Point Interpolation Studio
           </div>
 
-          <div style="display: flex; gap: 14px; margin-bottom: 18px; align-items: center;">
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
             <div style="flex: 1;">
-              <label class="form-label">Tank Capacity (Liters)</label>
+              <label class="form-label">Tank Capacity</label>
               <input id="calibTankCapacity" type="number" value="480" class="form-control" style="font-family: var(--font-mono);">
             </div>
             <div style="flex: 1.2;">
-              <label class="form-label">Load Quick Preset</label>
+              <label class="form-label">Quick Preset</label>
               <select onchange="CalibrationStudio.applyPreset(this.value)" class="form-control">
                 <option value="ashok_leyland_480">Ashok Leyland 480L</option>
                 <option value="bharatbenz_300">BharatBenz 300L</option>
@@ -239,234 +443,128 @@
             </div>
           </div>
 
-          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-            <thead>
-              <tr style="border-bottom: 1px solid var(--border-glass); text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">
-                <th style="padding: 8px;">Raw Input (%)</th>
-                <th style="padding: 8px;">Calibrated Volume (L)</th>
-                <th style="padding: 8px; text-align: right;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="calibTableBody">
-              <!-- Dynamically rendered -->
-            </tbody>
-          </table>
+          <div style="display: flex; justify-content: center; padding: 6px;">
+            <canvas id="curveCanvas" width="400" height="200" style="background: rgba(0,0,0,0.5); border-radius: var(--radius-md); border: 1px solid var(--border-glass);"></canvas>
+          </div>
 
-          <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
             <button class="btn-primary" onclick="CalibrationStudio.saveCalibrationToServer(currentDeviceImei)">
-              💾 Save Calibration Table
+              💾 Save Calibration
             </button>
           </div>
         </div>
 
-        <!-- Right: Curve Graph & Live Simulator Slider -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>📈</span> Continuous Calibration Curve (Interpolated)
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: center; padding: 10px;">
-            <canvas id="curveCanvas" width="460" height="250" style="background: rgba(0,0,0,0.5); border-radius: var(--radius-md); border: 1px solid var(--border-glass);"></canvas>
-          </div>
-
-          <!-- Live Slider Test Simulator -->
-          <div style="margin-top: 18px; padding: 14px; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Test Sensor Input:</span>
-              <span id="sliderRawVal" style="font-family: var(--font-mono); color: var(--traxen-primary-light); font-weight: 700; font-size: 1.1rem;">50%</span>
-            </div>
-            
-            <input type="range" min="0" max="100" value="50" oninput="CalibrationStudio.updateLiveSliderTest(this.value)" style="width: 100%; accent-color: var(--traxen-primary-light); cursor: pointer;">
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
-              <span style="font-size: 0.85rem; color: var(--text-muted);">Calibrated Output:</span>
-              <span id="sliderResultLiters" style="font-family: var(--font-mono); color: var(--status-moving); font-size: 1.3rem; font-weight: 800;">240.0 Liters</span>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
-
-    <!-- =========================================================================
-         TAB 3: 2D VEHICLE WIREFRAME GRAPHIC
-         ========================================================================= -->
-    <div id="tabWireframe" class="tab-pane">
-      <div class="glass-card" style="max-width: 800px; margin: 0 auto;">
-        <div class="card-header">
-          <div class="card-title">
-            <span>🚗</span> Top-Down Vehicle Wireframe (Live Body Diagnostics)
-          </div>
-          <div style="display: flex; gap: 10px;">
-            <div id="wfSeatbeltBadge" class="pill-status on">SEATBELT: FASTENED 🟢</div>
-            <div id="wfHandbrakeBadge" class="pill-status on">HANDBRAKE: RELEASED</div>
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: center; padding: 20px;">
-          <div style="width: 240px;">
-            <svg viewBox="0 0 200 400" style="width: 100%; height: auto; filter: drop-shadow(0 0 20px rgba(255, 109, 0, 0.25));">
-              <!-- Headlight Beams -->
-              <polygon id="wfHeadlights" points="60,30 20,0 180,0 140,30" fill="url(#headlightGrad)" opacity="0.85" />
-
-              <defs>
-                <linearGradient id="headlightGrad" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="0%" stop-color="#FF6D00" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#FF6D00" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-
-              <!-- Main Chassis -->
-              <rect x="40" y="40" width="120" height="320" rx="30" fill="#111827" stroke="#334155" stroke-width="3" />
-              
-              <!-- Windshield Front -->
-              <path d="M 50 110 Q 100 95 150 110 L 140 160 Q 100 150 60 160 Z" fill="rgba(255, 109, 0, 0.15)" stroke="#FF6D00" stroke-width="1.5" />
-              
-              <!-- Windshield Rear -->
-              <path d="M 55 280 Q 100 290 145 280 L 140 320 Q 100 325 60 320 Z" fill="rgba(255, 109, 0, 0.1)" stroke="#FF6D00" stroke-width="1" />
-
-              <!-- Driver Door (Front Left) -->
-              <rect id="wfDoorDriver" x="35" y="120" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
-              <!-- Passenger Door (Front Right) -->
-              <rect id="wfDoorPass" x="157" y="120" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
-
-              <!-- Rear Left Door -->
-              <rect x="35" y="190" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
-              <!-- Rear Right Door -->
-              <rect x="157" y="190" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
-
-              <!-- Wheels -->
-              <rect x="25" y="70" width="12" height="40" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
-              <rect x="163" y="70" width="12" height="40" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
-              <rect x="25" y="270" width="12" height="40" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
-              <rect x="163" y="270" width="12" height="40" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
-
-              <!-- Engine Bay -->
-              <rect x="65" y="55" width="70" height="40" rx="6" fill="#162036" stroke="#475569" stroke-dasharray="3,3" />
-              <text x="100" y="78" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Outfit" font-weight="700">ENGINE</text>
-            </svg>
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    <!-- =========================================================================
-         TAB 4: REMOTE GPRS COMMANDS (CODEC 12)
-         ========================================================================= -->
+    <!-- -------------------------------------------------------------------------
+         TAB 5: REMOTE COMMANDS & SIMULATOR
+         ------------------------------------------------------------------------- -->
     <div id="tabCommands" class="tab-pane">
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div class="can-clusters-grid" style="grid-template-columns: 1fr 1fr;">
         
-        <!-- Left: Quick Action Buttons -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>⚡</span> Traxen Quick Control Center
-            </div>
+        <!-- Quick Control Buttons -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>⚡</span> Remote GPRS Controls (Codec 12)
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <button class="btn-primary" style="background: linear-gradient(135deg, #DC2626, #EF4444); justify-content: space-between;" onclick="App.sendRemoteCommand('setdigout 1 0')">
-              <span>🛑 Immobilize Engine (Relay Cut-off)</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.85;">setdigout 1 0</span>
+              <span>🛑 Immobilize Engine (Relay Cut)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; opacity: 0.85;">setdigout 1 0</span>
             </button>
             <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('setdigout 0 0')">
-              <span>🟢 Restore Engine (Relay Unlock)</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--status-moving);">setdigout 0 0</span>
+              <span>🟢 Restore Engine (Unlock)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--status-moving);">setdigout 0 0</span>
             </button>
             <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('getinfo')">
-              <span>ℹ️ Get Tracker Info & Firmware</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">getinfo</span>
+              <span>ℹ️ Get Firmware & Device Info</span>
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">getinfo</span>
             </button>
             <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('getio')">
               <span>📊 Read Live IO Elements</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">getio</span>
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">getio</span>
             </button>
             <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('readcan')">
               <span>🚗 Inspect CAN Bus Lines</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">readcan</span>
+              <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">readcan</span>
             </button>
           </div>
 
-          <!-- Custom Command Input -->
-          <div style="margin-top: 24px;">
-            <label class="form-label">Custom GPRS Command</label>
-            <div style="display: flex; gap: 10px;">
+          <div style="margin-top: 18px;">
+            <label class="form-label">Custom Command</label>
+            <div style="display: flex; gap: 8px;">
               <input id="customCommandInput" type="text" placeholder="e.g. getver, getgps" class="form-control" style="font-family: var(--font-mono);">
               <button class="btn-primary" onclick="App.sendRemoteCommand()">Send</button>
             </div>
           </div>
         </div>
 
-        <!-- Right: Real-time Terminal Log -->
-        <div class="glass-card">
-          <div class="card-header">
-            <div class="card-title">
-              <span>💻</span> Codec 12 Command Console & Responses
-            </div>
+        <!-- Terminal Output & Simulator -->
+        <div class="can-cluster-card">
+          <div class="cluster-title">
+            <span>🕹️</span> Live Highway Trip Simulator & Terminal
           </div>
-          <div id="commandTerminal" style="background: #06090E; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-family: var(--font-mono); font-size: 0.85rem; height: 320px; overflow-y: auto; color: #38BDF8;">
-            <div style="color: var(--traxen-primary-light);">[Traxen Command Hub] Ready to dispatch Codec 12 commands over TCP socket (Port 5023)...</div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+            <button id="btnSimulateTrip" class="btn-primary" style="flex: 1; font-size: 0.8rem;" onclick="SimulatorController.toggleSimulation(currentDeviceImei)">
+              ▶️ Start Simulator
+            </button>
+            <button class="btn-secondary" style="border-color: var(--status-theft); color: var(--status-theft); font-size: 0.8rem;" onclick="SimulatorController.triggerTheftSimulation(currentDeviceImei)">
+              🚨 Simulate Fuel Drop
+            </button>
           </div>
-        </div>
 
-      </div>
-    </div>
-
-
-    <!-- =========================================================================
-         TAB 5: TRIP SIMULATOR & HEX INSPECTOR
-         ========================================================================= -->
-    <div id="tabSimulator" class="tab-pane">
-      <div class="glass-card" style="max-width: 1000px; margin: 0 auto;">
-        <div class="card-header">
-          <div class="card-title">
-            <span>🕹️</span> Live Vehicle Trip Simulator (No Hardware Required)
+          <div id="commandTerminal" style="background: #06090E; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 12px; font-family: var(--font-mono); font-size: 0.8rem; height: 210px; overflow-y: auto; color: #38BDF8;">
+            <div style="color: var(--traxen-primary-light);">[Traxen Command Hub] Ready on TCP Port 5023...</div>
           </div>
         </div>
 
-        <p style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6; margin-bottom: 20px;">
-          This built-in simulator transmits real <strong>Codec 8 Extended</strong> binary packets along the Chennai - Kanchipuram - Vellore - Salem highway corridor (NH44/NH48), simulating engine RPM changes, fuel consumption, and GPS location in real time.
-        </p>
-
-        <div style="display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap;">
-          <button id="btnSimulateTrip" class="btn-primary" onclick="SimulatorController.toggleSimulation(currentDeviceImei)">
-            ▶️ Start Live Highway Trip Simulation
-          </button>
-          <button class="btn-secondary" style="border-color: var(--status-theft); color: var(--status-theft);" onclick="SimulatorController.triggerTheftSimulation(currentDeviceImei)">
-            🚨 Simulate Fuel Theft Drop (-20L)
-          </button>
-        </div>
-
-        <div>
-          <label class="form-label">
-            Raw Teltonika Codec 8 Extended Binary Packet Stream
-          </label>
-          <div id="hexInspector" style="background: #06090E; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-family: var(--font-mono); font-size: 0.82rem; color: #4ADE80; word-break: break-all; line-height: 1.6;">
-            00000000 0000004A 8E 01 0000018DF438C2A0 01 04AC2890 00B33A50 0116 00B4 0E 0030 0001 0007 0004 0053 4E 00EF 01 0024 56 0066 58 0002 0020 0672 0042 5E8A 0001 0010 087E2C88 01 0000B42A
-          </div>
-        </div>
       </div>
     </div>
 
   </main>
 
   <!-- =========================================================================
-       TRAXEN ADD VEHICLE MODAL (With Traxen Category Icons)
+       TRAXEN MOBILE BOTTOM NAVIGATION BAR (5-Tab Native App Experience)
+       ========================================================================= -->
+  <nav class="traxen-bottom-nav">
+    <div class="bottom-nav-item active" data-tab="tabVehicles" onclick="App.switchTab('tabVehicles')">
+      <span class="icon">🚗</span>
+      <span>Vehicles</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="tabMap" onclick="App.switchTab('tabMap')">
+      <span class="icon">🗺️</span>
+      <span>Live Map</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="tabCan" onclick="App.switchTab('tabCan')">
+      <span class="icon">📊</span>
+      <span>CAN Bus</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="tabFuel" onclick="App.switchTab('tabFuel')">
+      <span class="icon">⛽</span>
+      <span>Fuel</span>
+    </div>
+    <div class="bottom-nav-item" data-tab="tabCommands" onclick="App.switchTab('tabCommands')">
+      <span class="icon">⚡</span>
+      <span>Control</span>
+    </div>
+  </nav>
+
+  <!-- =========================================================================
+       TRAXEN ADD VEHICLE MODAL (Category Icon Selector)
        ========================================================================= -->
   <div id="addDeviceModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
-      <div class="card-header">
-        <div class="card-title">
-          <span>➕</span> Register New Traxen Vehicle Tracker
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div style="font-size: 1.1rem; font-weight: 800; color: #fff;">
+          <span>➕</span> Register Traxen Vehicle
         </div>
         <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="App.closeAddDeviceModal()">✕</button>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
         <div class="form-group">
           <label class="form-label">Device IMEI (15 Digits) *</label>
           <input id="inputImei" type="text" placeholder="e.g. 353742372466615" class="form-control" style="font-family: var(--font-mono);">
@@ -517,10 +615,10 @@
 
         <div class="form-group">
           <label class="form-label">Vehicle Model Description</label>
-          <input id="inputModel" type="text" placeholder="e.g. Ashok Leyland Captain / Bajaj Pulsar 150" class="form-control">
+          <input id="inputModel" type="text" placeholder="e.g. Bajaj Pulsar 150 / Ashok Leyland Captain" class="form-control">
         </div>
 
-        <div style="display: flex; gap: 12px;">
+        <div style="display: flex; gap: 10px;">
           <div style="flex: 1;" class="form-group">
             <label class="form-label">Tank Capacity (L)</label>
             <input id="inputTankCap" type="number" value="480" class="form-control" style="font-family: var(--font-mono);">
@@ -530,14 +628,14 @@
             <select id="inputFuelSource" class="form-control">
               <option value="CAN_PERCENT">CAN Bus % (AVL 83)</option>
               <option value="CAN_LITERS">Direct CAN Liters (AVL 84)</option>
-              <option value="ANALOG_AIN1">Analog Wire (AIN1)</option>
+              <option value="ANALOG_AIN1">Analog Float (AIN1)</option>
             </select>
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
           <button class="btn-secondary" onclick="App.closeAddDeviceModal()">Cancel</button>
-          <button class="btn-primary" onclick="App.saveNewDevice()">Save Traxen Vehicle</button>
+          <button class="btn-primary" onclick="App.saveNewDevice()">Save Vehicle</button>
         </div>
       </div>
     </div>
@@ -546,10 +644,9 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
-  <!-- Application JS Modules -->
+  <!-- Traxen App JS Modules -->
   <script src="js/map.js"></script>
   <script src="js/gauges.js"></script>
-  <script src="js/wireframe.js"></script>
   <script src="js/calibration.js"></script>
   <script src="js/simulator.js"></script>
   <script src="js/app.js"></script>

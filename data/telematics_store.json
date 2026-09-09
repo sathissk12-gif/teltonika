@@ -1,0 +1,39 @@
+{
+  "devices": {
+    "353742372466615": {
+      "imei": "353742372466615",
+      "vehicleNumber": "TN-30-AZ-1234",
+      "model": "Bajaj Pulsar 150 BS6",
+      "category": "BIKE",
+      "tankCapacity": 15,
+      "fuelSource": "ANALOG_AIN1",
+      "calibrationPoints": [
+        {
+          "raw": 0,
+          "liters": 0
+        },
+        {
+          "raw": 25,
+          "liters": 3.75
+        },
+        {
+          "raw": 50,
+          "liters": 7.5
+        },
+        {
+          "raw": 75,
+          "liters": 11.25
+        },
+        {
+          "raw": 100,
+          "liters": 15
+        }
+      ],
+      "status": "OFFLINE",
+      "lastUpdated": "2026-09-09T14:51:47.884Z"
+    }
+  },
+  "positions": [],
+  "alerts": [],
+  "commandLogs": []
+}

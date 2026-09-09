@@ -109,28 +109,61 @@ const Database = {
       db.devices.set(imei, device);
     }
 
+    const rawTel = record.telemetry || {};
     const telemetry = {
+      ...rawTel,
       lat: record.gps.latitude,
       lng: record.gps.longitude,
       altitude: record.gps.altitude,
       angle: record.gps.angle,
       speed: record.gps.speed,
       satellites: record.gps.satellites,
-      ignition: record.telemetry.ignition !== undefined 
-        ? Boolean(record.telemetry.ignition) 
-        : (record.telemetry.DIN1 !== undefined 
-            ? Boolean(record.telemetry.DIN1) 
+      isValid: record.gps.isValid,
+      ignition: rawTel.ignition !== undefined 
+        ? Boolean(rawTel.ignition) 
+        : (rawTel.DIN1 !== undefined 
+            ? Boolean(rawTel.DIN1) 
             : (record.gps.speed > 0)),
-      fuelPercentage: record.telemetry.fuelLevelPercentage !== undefined ? record.telemetry.fuelLevelPercentage : record.telemetry.fuelLevel,
+      fuelPercentage: rawTel.fuelLevelPercentage !== undefined ? rawTel.fuelLevelPercentage : (rawTel.fuelLevel !== undefined ? rawTel.fuelLevel : 0),
       fuelLiters: calculatedLiters,
-      engineRpm: record.telemetry.engineRpm || 0,
-      odometerKm: record.telemetry.odometer || 0,
-      coolantTemp: record.telemetry.coolantTemp || 0,
-      batteryVoltage: record.telemetry.batteryVoltage || record.telemetry.externalVoltage || 0,
-      adBlueLevel: record.telemetry.adBlueLevel || null,
-      doorMask: record.telemetry.doorStatusMask || 0,
-      seatbeltMask: record.telemetry.seatbeltMask || 0,
-      handbrake: record.telemetry.handbrake || false,
+      engineRpm: rawTel.engineRpm || 0,
+      engineLoad: rawTel.engineLoad || 0,
+      engineHours: rawTel.engineHours || 0,
+      oilPressure: rawTel.oilPressure || 0,
+      engineOilTemp: rawTel.engineOilTemp || 0,
+      acceleratorPedal: rawTel.acceleratorPedal || 0,
+      currentGear: rawTel.currentGear !== undefined ? rawTel.currentGear : 0,
+      fuelRate: rawTel.fuelRate || 0,
+      totalFuelConsumed: rawTel.totalFuelConsumed || 0,
+      cngRate: rawTel.cngRate || 0,
+      totalCngUsed: rawTel.totalCngUsed || 0,
+      evBatterySoc: rawTel.evBatterySoc !== undefined ? rawTel.evBatterySoc : null,
+      evBatteryVoltage: rawTel.evBatteryVoltage !== undefined ? rawTel.evBatteryVoltage : null,
+      evBatteryCurrent: rawTel.evBatteryCurrent !== undefined ? rawTel.evBatteryCurrent : null,
+      evMotorTemp: rawTel.evMotorTemp !== undefined ? rawTel.evMotorTemp : null,
+      evRangeKm: rawTel.evRangeKm !== undefined ? rawTel.evRangeKm : null,
+      axleWeight1: rawTel.axleWeight1 !== undefined ? rawTel.axleWeight1 : null,
+      axleWeight2: rawTel.axleWeight2 !== undefined ? rawTel.axleWeight2 : null,
+      axleWeight3: rawTel.axleWeight3 !== undefined ? rawTel.axleWeight3 : null,
+      airSuspensionPressure: rawTel.airSuspensionPressure !== undefined ? rawTel.airSuspensionPressure : null,
+      acStatus: Boolean(rawTel.acStatus),
+      handbrake: Boolean(rawTel.handbrake),
+      footBrake: Boolean(rawTel.footBrake),
+      clutch: Boolean(rawTel.clutch),
+      cruiseControl: Boolean(rawTel.cruiseControl),
+      doorMask: rawTel.doorStatusMask || 0,
+      seatbeltMask: rawTel.seatbeltMask || 0,
+      lightsMask: rawTel.lightsMask || 0,
+      dtcCount: rawTel.dtcCount || 0,
+      nextServiceDistance: rawTel.nextServiceDistance !== undefined ? rawTel.nextServiceDistance : null,
+      vinChassis: rawTel.vinChassis || null,
+      externalVoltage: rawTel.externalVoltage || 0,
+      batteryVoltage: rawTel.batteryVoltage || rawTel.externalVoltage || 0,
+      gsmSignal: rawTel.gsmSignal || 0,
+      odometerKm: rawTel.odometer || 0,
+      tripOdometerKm: rawTel.tripOdometer || 0,
+      coolantTemp: rawTel.coolantTemp || 0,
+      adBlueLevel: rawTel.adBlueLevel !== undefined ? rawTel.adBlueLevel : null,
       rawIos: record.rawIos
     };
 
