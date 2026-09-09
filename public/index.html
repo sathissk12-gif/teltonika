@@ -3,40 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teltonika GPS & CAN Telematics Suite | Live FMX150 Dashboard</title>
+  <title>Traxen Telematics | Live GPS & CAN Command Center</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   
-  <!-- Custom Dark Glassmorphism CSS -->
+  <!-- Traxen Brand Design System CSS -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Top Navbar -->
+  <!-- Top Navbar (Traxen App Header) -->
   <nav class="navbar">
     <div class="nav-brand">
-      <div class="brand-icon">🛰️</div>
+      <img src="assets/logo/logo.png" alt="Traxen" class="brand-logo-img" onerror="this.style.display='none'">
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="brand-title">TRAXEN TELTONIKA HUB</span>
+          <span class="brand-title">TRAXEN TELEMATICS</span>
           <span class="brand-badge">FMX150 • CODEC 8 EXT</span>
         </div>
         <div id="selectedVehicleModel" style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">
-          Ashok Leyland Captain 2820 • 480L Tank
+          Select or register a vehicle to begin live tracking
         </div>
       </div>
     </div>
 
     <!-- Vehicle Selector & Management -->
-    <div style="display: flex; align-items: center; gap: 8px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
       <div class="vehicle-selector-box">
-        <span style="font-size: 1.1rem;">🚚</span>
+        <img id="navVehicleIcon" src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" class="vehicle-selector-icon" alt="Vehicle">
         <select id="deviceSelect">
-          <option value="">(No devices registered)</option>
+          <option value="">(No vehicles registered)</option>
         </select>
       </div>
-      <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="App.openAddDeviceModal()">+ Add Vehicle</button>
+      <button class="btn-primary" style="padding: 7px 14px; font-size: 0.82rem;" onclick="App.openAddDeviceModal()">+ Add Vehicle</button>
       <button class="btn-icon-danger" id="btnDeleteDevice" title="Delete current vehicle" onclick="App.deleteCurrentDevice()" style="display: none;">🗑️</button>
     </div>
 
@@ -44,13 +44,37 @@
     <div class="nav-status-group">
       <div class="status-chip">
         <div id="mainStatusDot" class="status-dot"></div>
-        <span id="mainStatusText">TCP Port 5023 Online</span>
+        <span id="mainStatusText">TCP 5023 Active</span>
       </div>
       <div class="status-chip">
-        <span id="wsStatusText" style="color: var(--accent-cyan);">WebSocket Live</span>
+        <span id="wsStatusText" style="color: var(--traxen-amber-light);">WebSocket Live</span>
       </div>
     </div>
   </nav>
+
+  <!-- Fleet Overview Summary Strip (Traxen App Style) -->
+  <div class="fleet-summary-strip">
+    <div class="fleet-stat-pill all active" onclick="App.filterFleet('ALL')">
+      <span>Fleet Total</span>
+      <span id="statFleetTotal" class="fleet-stat-count">0</span>
+    </div>
+    <div class="fleet-stat-pill moving" onclick="App.filterFleet('MOVING')">
+      <span>🟢 Running / Moving</span>
+      <span id="statFleetMoving" class="fleet-stat-count">0</span>
+    </div>
+    <div class="fleet-stat-pill idle" onclick="App.filterFleet('IDLE')">
+      <span>🟡 Idle (Ignition ON)</span>
+      <span id="statFleetIdle" class="fleet-stat-count">0</span>
+    </div>
+    <div class="fleet-stat-pill parking" onclick="App.filterFleet('PARKED')">
+      <span>🅿️ Stopped / Parked</span>
+      <span id="statFleetParked" class="fleet-stat-count">0</span>
+    </div>
+    <div class="fleet-stat-pill offline" onclick="App.filterFleet('OFFLINE')">
+      <span>⚪ Offline</span>
+      <span id="statFleetOffline" class="fleet-stat-count">0</span>
+    </div>
+  </div>
 
   <!-- Navigation Tabs -->
   <div class="tabs-nav">
@@ -89,14 +113,14 @@
             <div class="card-title">
               <span>📍</span> Live Vehicle Location & Trajectory
             </div>
-            <div id="pillIgnition" class="pill-status on">IGNITION ON</div>
+            <div id="pillIgnition" class="pill-status off">IGNITION OFF</div>
           </div>
 
           <div class="map-container">
             <div id="leafletMap"></div>
             <div class="map-overlay-stats">
-              <span id="mapSatellites">🛰️ 14 Sats</span>
-              <span id="mapGpsFix" style="color: var(--accent-green);">🟢 3D Fix</span>
+              <span id="mapSatellites">🛰️ 0 Sats</span>
+              <span id="mapGpsFix" style="color: var(--status-moving);">🟢 Ready</span>
             </div>
           </div>
 
@@ -104,27 +128,27 @@
           <div class="kpi-grid">
             <div class="kpi-card">
               <span class="kpi-label">Vehicle Speed</span>
-              <span id="kpiSpeed" class="kpi-value">48 <small>km/h</small></span>
+              <span id="kpiSpeed" class="kpi-value">0 <small>km/h</small></span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Engine RPM</span>
-              <span id="kpiRpm" class="kpi-value">1,650 <small>RPM</small></span>
+              <span id="kpiRpm" class="kpi-value">0 <small>RPM</small></span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Total Odometer</span>
-              <span id="kpiOdometer" class="kpi-value">142,580 <small>km</small></span>
+              <span id="kpiOdometer" class="kpi-value">0 <small>km</small></span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Coolant Temp</span>
-              <span id="kpiCoolant" class="kpi-value">86 <small>°C</small></span>
+              <span id="kpiCoolant" class="kpi-value">0 <small>°C</small></span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">Battery Voltage</span>
-              <span id="kpiBattery" class="kpi-value">24.2 <small>V</small></span>
+              <span id="kpiBattery" class="kpi-value">0.0 <small>V</small></span>
             </div>
             <div class="kpi-card">
               <span class="kpi-label">AdBlue Level</span>
-              <span id="kpiAdBlue" class="kpi-value">88 <small>%</small></span>
+              <span id="kpiAdBlue" class="kpi-value">-- <small>%</small></span>
             </div>
           </div>
         </div>
@@ -133,14 +157,14 @@
         <div class="glass-card">
           <div class="card-header">
             <div class="card-title">
-              <span>⛽</span> Smart Fuel Gauge (Calibrated)
+              <span>⛽</span> Smart Fuel Gauge (Traxen Engine)
             </div>
           </div>
 
           <div class="fuel-gauge-container">
             <!-- Animated Liquid Tank Graphic -->
             <div class="tank-visual">
-              <div id="tankLiquid" class="tank-liquid" style="height: 78%;"></div>
+              <div id="tankLiquid" class="tank-liquid" style="height: 0%;"></div>
               <div class="tank-grid-lines">
                 <div class="grid-mark">100%</div>
                 <div class="grid-mark">75%</div>
@@ -151,27 +175,30 @@
             </div>
 
             <!-- Readout Values -->
-            <div class="fuel-readout-main">
-              <div id="fuelLitersVal" class="fuel-liters-val">374.4 L</div>
-              <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;">
-                <span id="fuelPercentVal" class="fuel-percent-badge">78% Full</span>
-                <span style="color: var(--text-muted);">•</span>
-                <span id="fuelRangeVal" style="color: var(--accent-cyan); font-weight: 600; font-size: 0.9rem;">~1,422 km Range</span>
+            <div class="fuel-stats-panel">
+              <div class="fuel-big-stat">
+                <span class="kpi-label">Calibrated Volume</span>
+                <span id="fuelLitersVal" class="fuel-liters-hero">0.0 L</span>
+                <span id="fuelPercentVal" class="fuel-pct-sub">0% Full</span>
+              </div>
+              <div style="background: rgba(255, 255, 255, 0.03); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+                <div style="font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Estimated Range</div>
+                <div id="fuelRangeVal" style="font-family: var(--font-mono); font-size: 1.15rem; font-weight: 800; color: var(--traxen-primary-light);">~0 km</div>
               </div>
             </div>
           </div>
 
-          <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-glass);">
-            <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase;">
+          <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-glass);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px; font-weight: 700; text-transform: uppercase;">
               Theft & Refuel Protection
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.86rem; margin-bottom: 8px;">
               <span style="color: var(--text-secondary);">Parking Theft Guard:</span>
-              <span style="color: var(--accent-green); font-weight: 600;">Active 🛡️ (&gt;5L drop)</span>
+              <span style="color: var(--status-moving); font-weight: 700;">Active 🛡️ (&gt;5L drop)</span>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.88rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.86rem;">
               <span style="color: var(--text-secondary);">Sensor Input Source:</span>
-              <span style="color: var(--accent-cyan); font-weight: 600;">CAN Bus % (AVL 83)</span>
+              <span id="fuelSourceBadge" style="color: var(--traxen-amber); font-weight: 700;">CAN Bus % (AVL 83)</span>
             </div>
           </div>
         </div>
@@ -184,7 +211,7 @@
          TAB 2: DIESEL CALIBRATION STUDIO
          ========================================================================= -->
     <div id="tabCalibration" class="tab-pane">
-      <div class="calibration-layout">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         
         <!-- Left: Multi-point Table Editor -->
         <div class="glass-card">
@@ -197,32 +224,27 @@
 
           <div style="display: flex; gap: 14px; margin-bottom: 18px; align-items: center;">
             <div style="flex: 1;">
-              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TANK CAPACITY (LITERS)</label>
-              <input id="calibTankCapacity" type="number" value="480" style="
-                width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-                padding: 10px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); font-size: 1rem;
-              ">
+              <label class="form-label">Tank Capacity (Liters)</label>
+              <input id="calibTankCapacity" type="number" value="480" class="form-control" style="font-family: var(--font-mono);">
             </div>
             <div style="flex: 1.2;">
-              <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">LOAD QUICK PRESET</label>
-              <select onchange="CalibrationStudio.applyPreset(this.value)" style="
-                width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-                padding: 10px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-main); font-size: 0.9rem;
-              ">
+              <label class="form-label">Load Quick Preset</label>
+              <select onchange="CalibrationStudio.applyPreset(this.value)" class="form-control">
                 <option value="ashok_leyland_480">Ashok Leyland 480L</option>
                 <option value="bharatbenz_300">BharatBenz 300L</option>
                 <option value="tata_160">Tata 160L</option>
                 <option value="bolero_60">Mahindra Bolero 60L</option>
+                <option value="pulsar_15">Bajaj Pulsar 15L (Bike)</option>
               </select>
             </div>
           </div>
 
-          <table class="table-custom">
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
-              <tr>
-                <th>Raw Input (%)</th>
-                <th>Calibrated Volume (L)</th>
-                <th>Action</th>
+              <tr style="border-bottom: 1px solid var(--border-glass); text-align: left; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">
+                <th style="padding: 8px;">Raw Input (%)</th>
+                <th style="padding: 8px;">Calibrated Volume (L)</th>
+                <th style="padding: 8px; text-align: right;">Action</th>
               </tr>
             </thead>
             <tbody id="calibTableBody">
@@ -246,21 +268,21 @@
           </div>
 
           <div style="display: flex; justify-content: center; padding: 10px;">
-            <canvas id="curveCanvas" width="460" height="260" style="background: rgba(0,0,0,0.4); border-radius: var(--radius-md); border: 1px solid var(--border-glass);"></canvas>
+            <canvas id="curveCanvas" width="460" height="250" style="background: rgba(0,0,0,0.5); border-radius: var(--radius-md); border: 1px solid var(--border-glass);"></canvas>
           </div>
 
           <!-- Live Slider Test Simulator -->
-          <div class="slider-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-secondary);">Test Sensor Input:</span>
-              <span id="sliderRawVal" style="font-family: var(--font-mono); color: var(--accent-cyan); font-weight: 700; font-size: 1.1rem;">50%</span>
+          <div style="margin-top: 18px; padding: 14px; background: rgba(255, 255, 255, 0.03); border-radius: var(--radius-md); border: 1px solid var(--border-glass);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Test Sensor Input:</span>
+              <span id="sliderRawVal" style="font-family: var(--font-mono); color: var(--traxen-primary-light); font-weight: 700; font-size: 1.1rem;">50%</span>
             </div>
             
-            <input type="range" min="0" max="100" value="50" oninput="CalibrationStudio.updateLiveSliderTest(this.value)">
+            <input type="range" min="0" max="100" value="50" oninput="CalibrationStudio.updateLiveSliderTest(this.value)" style="width: 100%; accent-color: var(--traxen-primary-light); cursor: pointer;">
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
-              <span style="font-size: 0.88rem; color: var(--text-muted);">Calibrated Output:</span>
-              <span id="sliderResultLiters" style="font-family: var(--font-mono); color: var(--accent-green); font-size: 1.4rem; font-weight: 800;">235.0 Liters</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Calibrated Output:</span>
+              <span id="sliderResultLiters" style="font-family: var(--font-mono); color: var(--status-moving); font-size: 1.3rem; font-weight: 800;">240.0 Liters</span>
             </div>
           </div>
         </div>
@@ -273,7 +295,7 @@
          TAB 3: 2D VEHICLE WIREFRAME GRAPHIC
          ========================================================================= -->
     <div id="tabWireframe" class="tab-pane">
-      <div class="glass-card" style="max-width: 900px; margin: 0 auto;">
+      <div class="glass-card" style="max-width: 800px; margin: 0 auto;">
         <div class="card-header">
           <div class="card-title">
             <span>🚗</span> Top-Down Vehicle Wireframe (Live Body Diagnostics)
@@ -284,38 +306,37 @@
           </div>
         </div>
 
-        <div class="wireframe-container">
-          <!-- Interactive SVG Car Outline -->
-          <div class="vehicle-svg-box">
-            <svg viewBox="0 0 200 400" style="width: 100%; height: auto; filter: drop-shadow(0 0 20px rgba(0, 240, 255, 0.2));">
+        <div style="display: flex; justify-content: center; padding: 20px;">
+          <div style="width: 240px;">
+            <svg viewBox="0 0 200 400" style="width: 100%; height: auto; filter: drop-shadow(0 0 20px rgba(255, 109, 0, 0.25));">
               <!-- Headlight Beams -->
               <polygon id="wfHeadlights" points="60,30 20,0 180,0 140,30" fill="url(#headlightGrad)" opacity="0.85" />
 
               <defs>
                 <linearGradient id="headlightGrad" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#00f0ff" stop-opacity="0" />
+                  <stop offset="0%" stop-color="#FF6D00" stop-opacity="0.4" />
+                  <stop offset="100%" stop-color="#FF6D00" stop-opacity="0" />
                 </linearGradient>
               </defs>
 
               <!-- Main Chassis -->
-              <rect x="40" y="40" width="120" height="320" rx="30" fill="#0d121d" stroke="#334155" stroke-width="3" />
+              <rect x="40" y="40" width="120" height="320" rx="30" fill="#111827" stroke="#334155" stroke-width="3" />
               
               <!-- Windshield Front -->
-              <path d="M 50 110 Q 100 95 150 110 L 140 160 Q 100 150 60 160 Z" fill="rgba(0, 240, 255, 0.15)" stroke="#00f0ff" stroke-width="1.5" />
+              <path d="M 50 110 Q 100 95 150 110 L 140 160 Q 100 150 60 160 Z" fill="rgba(255, 109, 0, 0.15)" stroke="#FF6D00" stroke-width="1.5" />
               
               <!-- Windshield Rear -->
-              <path d="M 55 280 Q 100 290 145 280 L 140 320 Q 100 325 60 320 Z" fill="rgba(0, 240, 255, 0.1)" stroke="#00f0ff" stroke-width="1" />
+              <path d="M 55 280 Q 100 290 145 280 L 140 320 Q 100 325 60 320 Z" fill="rgba(255, 109, 0, 0.1)" stroke="#FF6D00" stroke-width="1" />
 
               <!-- Driver Door (Front Left) -->
-              <rect id="wfDoorDriver" x="35" y="120" width="8" height="60" rx="3" fill="rgba(0, 230, 118, 0.2)" stroke="#00e676" stroke-width="2" />
+              <rect id="wfDoorDriver" x="35" y="120" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
               <!-- Passenger Door (Front Right) -->
-              <rect id="wfDoorPass" x="157" y="120" width="8" height="60" rx="3" fill="rgba(0, 230, 118, 0.2)" stroke="#00e676" stroke-width="2" />
+              <rect id="wfDoorPass" x="157" y="120" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
 
               <!-- Rear Left Door -->
-              <rect x="35" y="190" width="8" height="60" rx="3" fill="rgba(0, 230, 118, 0.2)" stroke="#00e676" stroke-width="2" />
+              <rect x="35" y="190" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
               <!-- Rear Right Door -->
-              <rect x="157" y="190" width="8" height="60" rx="3" fill="rgba(0, 230, 118, 0.2)" stroke="#00e676" stroke-width="2" />
+              <rect x="157" y="190" width="8" height="60" rx="3" fill="rgba(22, 163, 74, 0.2)" stroke="#16A34A" stroke-width="2" />
 
               <!-- Wheels -->
               <rect x="25" y="70" width="12" height="40" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.5" />
@@ -325,7 +346,7 @@
 
               <!-- Engine Bay -->
               <rect x="65" y="55" width="70" height="40" rx="6" fill="#162036" stroke="#475569" stroke-dasharray="3,3" />
-              <text x="100" y="78" text-anchor="middle" fill="#64748b" font-size="10" font-family="Outfit">ENGINE</text>
+              <text x="100" y="78" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="Outfit" font-weight="700">ENGINE</text>
             </svg>
           </div>
         </div>
@@ -337,47 +358,44 @@
          TAB 4: REMOTE GPRS COMMANDS (CODEC 12)
          ========================================================================= -->
     <div id="tabCommands" class="tab-pane">
-      <div class="command-grid">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
         
         <!-- Left: Quick Action Buttons -->
         <div class="glass-card">
           <div class="card-header">
             <div class="card-title">
-              <span>⚡</span> Quick Control Center
+              <span>⚡</span> Traxen Quick Control Center
             </div>
           </div>
 
-          <div class="quick-commands">
-            <button class="btn-command-quick danger" onclick="App.sendRemoteCommand('setdigout 1 0')">
-              <span>🛑 Immobilize Engine (Relay 1 Cut)</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.7;">setdigout 1 0</span>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn-primary" style="background: linear-gradient(135deg, #DC2626, #EF4444); justify-content: space-between;" onclick="App.sendRemoteCommand('setdigout 1 0')">
+              <span>🛑 Immobilize Engine (Relay Cut-off)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.85;">setdigout 1 0</span>
             </button>
-            <button class="btn-command-quick" onclick="App.sendRemoteCommand('setdigout 0 0')">
-              <span>🟢 Restore Engine (Relay 1 Unlock)</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.7;">setdigout 0 0</span>
+            <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('setdigout 0 0')">
+              <span>🟢 Restore Engine (Relay Unlock)</span>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--status-moving);">setdigout 0 0</span>
             </button>
-            <button class="btn-command-quick" onclick="App.sendRemoteCommand('getinfo')">
+            <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('getinfo')">
               <span>ℹ️ Get Tracker Info & Firmware</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.7;">getinfo</span>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">getinfo</span>
             </button>
-            <button class="btn-command-quick" onclick="App.sendRemoteCommand('getio')">
+            <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('getio')">
               <span>📊 Read Live IO Elements</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.7;">getio</span>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">getio</span>
             </button>
-            <button class="btn-command-quick" onclick="App.sendRemoteCommand('readcan')">
+            <button class="btn-secondary" style="justify-content: space-between; display: flex;" onclick="App.sendRemoteCommand('readcan')">
               <span>🚗 Inspect CAN Bus Lines</span>
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; opacity: 0.7;">readcan</span>
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);">readcan</span>
             </button>
           </div>
 
           <!-- Custom Command Input -->
           <div style="margin-top: 24px;">
-            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">CUSTOM GPRS COMMAND</label>
-            <div style="display: flex; gap: 10px; margin-top: 8px;">
-              <input id="customCommandInput" type="text" placeholder="e.g. getver, getgps" style="
-                flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-                padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); outline: none;
-              ">
+            <label class="form-label">Custom GPRS Command</label>
+            <div style="display: flex; gap: 10px;">
+              <input id="customCommandInput" type="text" placeholder="e.g. getver, getgps" class="form-control" style="font-family: var(--font-mono);">
               <button class="btn-primary" onclick="App.sendRemoteCommand()">Send</button>
             </div>
           </div>
@@ -390,8 +408,8 @@
               <span>💻</span> Codec 12 Command Console & Responses
             </div>
           </div>
-          <div id="commandTerminal" class="terminal-box">
-            <div class="terminal-line cmd">[System] Ready to dispatch Codec 12 commands over TCP socket (Port 5023)...</div>
+          <div id="commandTerminal" style="background: #06090E; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-family: var(--font-mono); font-size: 0.85rem; height: 320px; overflow-y: auto; color: #38BDF8;">
+            <div style="color: var(--traxen-primary-light);">[Traxen Command Hub] Ready to dispatch Codec 12 commands over TCP socket (Port 5023)...</div>
           </div>
         </div>
 
@@ -418,16 +436,16 @@
           <button id="btnSimulateTrip" class="btn-primary" onclick="SimulatorController.toggleSimulation(currentDeviceImei)">
             ▶️ Start Live Highway Trip Simulation
           </button>
-          <button class="btn-secondary" style="border-color: var(--accent-red); color: var(--accent-red);" onclick="SimulatorController.triggerTheftSimulation(currentDeviceImei)">
+          <button class="btn-secondary" style="border-color: var(--status-theft); color: var(--status-theft);" onclick="SimulatorController.triggerTheftSimulation(currentDeviceImei)">
             🚨 Simulate Fuel Theft Drop (-20L)
           </button>
         </div>
 
         <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; display: block;">
-            RAW TELTONIKA CODEC 8 EXTENDED BINARY PACKET STREAM
+          <label class="form-label">
+            Raw Teltonika Codec 8 Extended Binary Packet Stream
           </label>
-          <div id="hexInspector" class="hex-view">
+          <div id="hexInspector" style="background: #06090E; border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; font-family: var(--font-mono); font-size: 0.82rem; color: #4ADE80; word-break: break-all; line-height: 1.6;">
             00000000 0000004A 8E 01 0000018DF438C2A0 01 04AC2890 00B33A50 0116 00B4 0E 0030 0001 0007 0004 0053 4E 00EF 01 0024 56 0066 58 0002 0020 0672 0042 5E8A 0001 0010 087E2C88 01 0000B42A
           </div>
         </div>
@@ -436,59 +454,80 @@
 
   </main>
 
-  <!-- Add Device Modal -->
-  <div id="addDeviceModal" style="
-    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-    background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 2000;
-    align-items: center; justify-content: center;
-  ">
-    <div class="glass-card" style="width: 100%; max-width: 480px; margin: 20px; border-color: var(--border-glass-glow);">
+  <!-- =========================================================================
+       TRAXEN ADD VEHICLE MODAL (With Traxen Category Icons)
+       ========================================================================= -->
+  <div id="addDeviceModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
       <div class="card-header">
         <div class="card-title">
-          <span>➕</span> Register New Vehicle Tracker
+          <span>➕</span> Register New Traxen Vehicle Tracker
         </div>
-        <button class="alert-close" onclick="App.closeAddDeviceModal()">✕</button>
+        <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="App.closeAddDeviceModal()">✕</button>
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 14px;">
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">DEVICE IMEI (15 Digits) *</label>
-          <input id="inputImei" type="text" placeholder="e.g. 864032059281726" style="
-            width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-            padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); outline: none;
-          ">
+        <div class="form-group">
+          <label class="form-label">Device IMEI (15 Digits) *</label>
+          <input id="inputImei" type="text" placeholder="e.g. 353742372466615" class="form-control" style="font-family: var(--font-mono);">
         </div>
 
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VEHICLE NUMBER / REGISTRATION *</label>
-          <input id="inputPlate" type="text" placeholder="e.g. TN-01-AB-1234" style="
-            width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-            padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-main); outline: none;
-          ">
+        <div class="form-group">
+          <label class="form-label">Vehicle Registration Number *</label>
+          <input id="inputPlate" type="text" placeholder="e.g. TN-01-AB-1234" class="form-control">
         </div>
 
-        <div>
-          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">VEHICLE MODEL</label>
-          <input id="inputModel" type="text" placeholder="e.g. BharatBenz 2823R / Ashok Leyland" style="
-            width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-            padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-main); outline: none;
-          ">
+        <div class="form-group">
+          <label class="form-label">Vehicle Category</label>
+          <div class="category-picker-grid" id="categoryPicker">
+            <div class="category-option selected" data-cat="OPEN TRUCK" onclick="App.selectCategory('OPEN TRUCK', this)">
+              <img src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" alt="Truck">
+              <span>Truck</span>
+            </div>
+            <div class="category-option" data-cat="BIKE" onclick="App.selectCategory('BIKE', this)">
+              <img src="assets/icons/vehicle/sideview/moving/BIKE.png" alt="Bike">
+              <span>Bike</span>
+            </div>
+            <div class="category-option" data-cat="CAR" onclick="App.selectCategory('CAR', this)">
+              <img src="assets/icons/vehicle/sideview/moving/CAR.png" alt="Car">
+              <span>Car</span>
+            </div>
+            <div class="category-option" data-cat="BUS" onclick="App.selectCategory('BUS', this)">
+              <img src="assets/icons/vehicle/sideview/moving/BUS.png" alt="Bus">
+              <span>Bus</span>
+            </div>
+            <div class="category-option" data-cat="MINI TRUCK" onclick="App.selectCategory('MINI TRUCK', this)">
+              <img src="assets/icons/vehicle/sideview/moving/MINI TRUCK.png" alt="Mini Truck">
+              <span>Mini Truck</span>
+            </div>
+            <div class="category-option" data-cat="CONTAINER" onclick="App.selectCategory('CONTAINER', this)">
+              <img src="assets/icons/vehicle/sideview/moving/CONTAINER.png" alt="Container">
+              <span>Container</span>
+            </div>
+            <div class="category-option" data-cat="AUTO-RICKSHAW" onclick="App.selectCategory('AUTO-RICKSHAW', this)">
+              <img src="assets/icons/vehicle/sideview/moving/AUTO-RICKSHAW.png" alt="Auto">
+              <span>Auto</span>
+            </div>
+            <div class="category-option" data-cat="TRACTOR" onclick="App.selectCategory('TRACTOR', this)">
+              <img src="assets/icons/vehicle/sideview/moving/TRACTOR.png" alt="Tractor">
+              <span>Tractor</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Vehicle Model Description</label>
+          <input id="inputModel" type="text" placeholder="e.g. Ashok Leyland Captain / Bajaj Pulsar 150" class="form-control">
         </div>
 
         <div style="display: flex; gap: 12px;">
-          <div style="flex: 1;">
-            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TANK CAPACITY (L)</label>
-            <input id="inputTankCap" type="number" value="480" style="
-              width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-              padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-mono); outline: none;
-            ">
+          <div style="flex: 1;" class="form-group">
+            <label class="form-label">Tank Capacity (L)</label>
+            <input id="inputTankCap" type="number" value="480" class="form-control" style="font-family: var(--font-mono);">
           </div>
-          <div style="flex: 1;">
-            <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">FUEL SENSOR</label>
-            <select id="inputFuelSource" style="
-              width: 100%; margin-top: 6px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-glass); 
-              padding: 10px 14px; border-radius: var(--radius-sm); color: #fff; font-family: var(--font-main); outline: none;
-            ">
+          <div style="flex: 1;" class="form-group">
+            <label class="form-label">Fuel Sensor</label>
+            <select id="inputFuelSource" class="form-control">
               <option value="CAN_PERCENT">CAN Bus % (AVL 83)</option>
               <option value="CAN_LITERS">Direct CAN Liters (AVL 84)</option>
               <option value="ANALOG_AIN1">Analog Wire (AIN1)</option>
@@ -498,7 +537,7 @@
 
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
           <button class="btn-secondary" onclick="App.closeAddDeviceModal()">Cancel</button>
-          <button class="btn-primary" onclick="App.saveNewDevice()">Save Vehicle</button>
+          <button class="btn-primary" onclick="App.saveNewDevice()">Save Traxen Vehicle</button>
         </div>
       </div>
     </div>

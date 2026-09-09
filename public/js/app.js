@@ -1,9 +1,13 @@
 /**
- * Teltonika Telematics Suite - Main Application Controller
+ * Traxen Telematics Suite - Main Application Controller
+ * Official Traxen Fleet & Vehicle Tracking Architecture
  */
 
 let currentDeviceImei = null;
 let allDevices = [];
+let filteredDevices = [];
+let currentFleetFilter = 'ALL';
+let selectedNewVehicleCategory = 'OPEN TRUCK';
 let ws = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -35,6 +39,17 @@ function initTabs() {
   });
 }
 
+// Icon Helper: maps vehicle category and status to official Traxen icon asset path
+function getVehicleIconPath(category = 'OPEN TRUCK', status = 'moving') {
+  const validCategories = [
+    'OPEN TRUCK', 'BIKE', 'CAR', 'CAR SUV', 'BUS', 
+    'MINI TRUCK', 'CONTAINER', 'AUTO-RICKSHAW', 'TRACTOR', 'AMBULANCE', 'BULKER', 'PORTABLE TRACKER'
+  ];
+  const cat = validCategories.includes(category.toUpperCase()) ? category.toUpperCase() : 'OPEN TRUCK';
+  const stat = ['moving', 'idle', 'parking', 'nodata'].includes(status) ? status : 'moving';
+  return `assets/icons/vehicle/sideview/${stat}/${cat}.png`;
+}
+
 // Load Devices from Server
 function loadDevices() {
   fetch('/api/devices')
@@ -42,15 +57,84 @@ function loadDevices() {
     .then(data => {
       if (data.success) {
         allDevices = data.data || [];
-        populateDeviceDropdown(allDevices);
-        if (allDevices.length > 0) {
-          selectDevice(allDevices[0].imei);
-        } else {
-          showEmptyDeviceState();
-        }
+        updateFleetCounters();
+        applyFleetFilter(currentFleetFilter);
       }
     })
     .catch(err => console.error('Error loading devices:', err));
+}
+
+// Update Traxen Fleet Overview Counters (Total, Moving, Idle, Parked, Offline)
+function updateFleetCounters() {
+  let total = allDevices.length;
+  let moving = 0;
+  let idle = 0;
+  let parked = 0;
+  let offline = 0;
+
+  allDevices.forEach(dev => {
+    const isOnline = dev.status === 'ONLINE';
+    const tel = dev.lastTelemetry || {};
+    const speed = tel.speed || 0;
+    const ignition = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1;
+
+    if (!isOnline) {
+      offline++;
+    } else if (speed > 0) {
+      moving++;
+    } else if (ignition) {
+      idle++;
+    } else {
+      parked++;
+    }
+  });
+
+  const elTotal = document.getElementById('statFleetTotal');
+  const elMoving = document.getElementById('statFleetMoving');
+  const elIdle = document.getElementById('statFleetIdle');
+  const elParked = document.getElementById('statFleetParked');
+  const elOffline = document.getElementById('statFleetOffline');
+
+  if (elTotal) elTotal.innerText = total;
+  if (elMoving) elMoving.innerText = moving;
+  if (elIdle) elIdle.innerText = idle;
+  if (elParked) elParked.innerText = parked;
+  if (elOffline) elOffline.innerText = offline;
+}
+
+// Filter fleet by status pill click
+function filterFleet(type) {
+  currentFleetFilter = type;
+  document.querySelectorAll('.fleet-stat-pill').forEach(pill => pill.classList.remove('active'));
+  const activePill = document.querySelector(`.fleet-stat-pill.${type.toLowerCase()}`);
+  if (activePill) activePill.classList.add('active');
+  applyFleetFilter(type);
+}
+
+function applyFleetFilter(type) {
+  if (type === 'ALL') {
+    filteredDevices = [...allDevices];
+  } else if (type === 'MOVING') {
+    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && d.lastTelemetry && d.lastTelemetry.speed > 0);
+  } else if (type === 'IDLE') {
+    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && d.lastTelemetry && (d.lastTelemetry.ignition === true || d.lastTelemetry.ignition === 1) && (!d.lastTelemetry.speed || d.lastTelemetry.speed === 0));
+  } else if (type === 'PARKED') {
+    filteredDevices = allDevices.filter(d => d.status === 'ONLINE' && (!d.lastTelemetry || !d.lastTelemetry.ignition) && (!d.lastTelemetry || !d.lastTelemetry.speed || d.lastTelemetry.speed === 0));
+  } else if (type === 'OFFLINE') {
+    filteredDevices = allDevices.filter(d => d.status !== 'ONLINE');
+  }
+
+  populateDeviceDropdown(filteredDevices);
+
+  if (filteredDevices.length > 0) {
+    // If current selected device is still in the filtered list, keep it; else select first
+    const exists = filteredDevices.some(d => d.imei === currentDeviceImei);
+    if (!exists) {
+      selectDevice(filteredDevices[0].imei);
+    }
+  } else {
+    showEmptyDeviceState();
+  }
 }
 
 function populateDeviceDropdown(devices) {
@@ -62,7 +146,7 @@ function populateDeviceDropdown(devices) {
   if (devices.length === 0) {
     const opt = document.createElement('option');
     opt.value = '';
-    opt.innerText = '(No vehicles registered)';
+    opt.innerText = '(No matching vehicles)';
     select.appendChild(opt);
     if (btnDelete) btnDelete.style.display = 'none';
     return;
@@ -71,7 +155,7 @@ function populateDeviceDropdown(devices) {
   devices.forEach(dev => {
     const opt = document.createElement('option');
     opt.value = dev.imei;
-    opt.innerText = `${dev.vehicleNumber} (${dev.model || 'Teltonika'})`;
+    opt.innerText = `${dev.vehicleNumber} (${dev.model || 'Traxen Tracker'})`;
     select.appendChild(opt);
   });
 
@@ -91,8 +175,11 @@ function showEmptyDeviceState() {
   const statusText = document.getElementById('mainStatusText');
   if (statusDot && statusText) {
     statusDot.className = 'status-dot';
-    statusText.innerText = 'TCP Port 5023 Ready';
+    statusText.innerText = 'TCP Port 5023 Active';
   }
+
+  const navIcon = document.getElementById('navVehicleIcon');
+  if (navIcon) navIcon.src = getVehicleIconPath('OPEN TRUCK', 'nodata');
 
   if (window.GaugesController) {
     window.GaugesController.updateGauges({
@@ -119,14 +206,30 @@ function selectDevice(imei) {
   const btnDelete = document.getElementById('btnDeleteDevice');
   if (btnDelete) btnDelete.style.display = 'inline-block';
 
+  const isOnline = dev.status === 'ONLINE';
+  const tel = dev.lastTelemetry || {};
+  const statusMode = isOnline ? (tel.speed > 0 ? 'moving' : (tel.ignition ? 'idle' : 'parking')) : 'nodata';
+
+  // Update Traxen Sideview Icon in Navbar
+  const navIcon = document.getElementById('navVehicleIcon');
+  if (navIcon) {
+    navIcon.src = getVehicleIconPath(dev.category || 'OPEN TRUCK', statusMode);
+  }
+
   // Update Header Badges
   const modelElem = document.getElementById('selectedVehicleModel');
-  if (modelElem) modelElem.innerText = `${dev.model} • ${dev.tankCapacity}L Tank`;
+  if (modelElem) modelElem.innerText = `${dev.model} • ${dev.tankCapacity}L Tank • ${dev.category || 'Vehicle'}`;
+
+  const sourceBadge = document.getElementById('fuelSourceBadge');
+  if (sourceBadge) {
+    sourceBadge.innerText = dev.fuelSource === 'ANALOG_AIN1' 
+      ? 'Analog Float (AIN1)' 
+      : (dev.fuelSource === 'CAN_LITERS' ? 'Direct CAN Liters (AVL 84)' : 'CAN Bus % (AVL 83)');
+  }
 
   const statusDot = document.getElementById('mainStatusDot');
   const statusText = document.getElementById('mainStatusText');
   if (statusDot && statusText) {
-    const isOnline = dev.status === 'ONLINE';
     statusDot.className = `status-dot ${isOnline ? '' : 'offline'}`;
     statusText.innerText = isOnline ? 'TCP Port 5023 Online' : 'Device Offline';
   }
@@ -138,7 +241,8 @@ function selectDevice(imei) {
         dev.lastTelemetry.lat || 11.6643,
         dev.lastTelemetry.lng || 78.1460,
         dev.lastTelemetry.angle || 0,
-        dev.lastTelemetry.speed || 0
+        dev.lastTelemetry.speed || 0,
+        dev.category || 'OPEN TRUCK'
       );
     }
     if (window.GaugesController) {
@@ -163,6 +267,23 @@ function closeAddDeviceModal() {
   if (modal) modal.style.display = 'none';
 }
 
+function selectCategory(cat, elem) {
+  selectedNewVehicleCategory = cat;
+  document.querySelectorAll('#categoryPicker .category-option').forEach(el => el.classList.remove('selected'));
+  if (elem) elem.classList.add('selected');
+
+  // Auto-fill sensible default tank capacities based on category
+  const tankInput = document.getElementById('inputTankCap');
+  if (tankInput) {
+    if (cat === 'BIKE') tankInput.value = 15;
+    else if (cat === 'CAR' || cat === 'CAR SUV') tankInput.value = 60;
+    else if (cat === 'AUTO-RICKSHAW') tankInput.value = 8;
+    else if (cat === 'MINI TRUCK') tankInput.value = 80;
+    else if (cat === 'BUS' || cat === 'TRACTOR') tankInput.value = 160;
+    else tankInput.value = 480;
+  }
+}
+
 function saveNewDevice() {
   const imeiInput = document.getElementById('inputImei');
   const plateInput = document.getElementById('inputPlate');
@@ -177,7 +298,7 @@ function saveNewDevice() {
   const fuelSource = sensorInput ? sensorInput.value : 'CAN_PERCENT';
 
   if (!imei || !vehicleNumber) {
-    alert('Please enter Device IMEI and Vehicle Number!');
+    alert('Please enter Device IMEI and Vehicle Registration Number!');
     return;
   }
 
@@ -187,7 +308,8 @@ function saveNewDevice() {
     body: JSON.stringify({
       imei,
       vehicleNumber,
-      model: model || 'Teltonika Tracker',
+      category: selectedNewVehicleCategory,
+      model: model || `Traxen ${selectedNewVehicleCategory}`,
       tankCapacity,
       fuelSource
     })
@@ -263,11 +385,19 @@ function initWebSocket() {
 function handleWebSocketMessage(msg) {
   if (msg.event === 'telemetry') {
     const { imei, data } = msg.data;
+    
+    // Update memory device telemetry
+    const dev = allDevices.find(d => d.imei === imei);
+    if (dev) {
+      dev.lastTelemetry = data;
+      dev.status = 'ONLINE';
+    }
+    updateFleetCounters();
+
     if (imei === currentDeviceImei) {
       if (window.MapController) {
-        window.MapController.updateVehicleLocation(data.lat, data.lng, data.angle, data.speed);
+        window.MapController.updateVehicleLocation(data.lat, data.lng, data.angle, data.speed, dev ? dev.category : 'OPEN TRUCK');
       }
-      const dev = allDevices.find(d => d.imei === imei);
       if (window.GaugesController) {
         window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 480);
       }
@@ -285,18 +415,18 @@ function showAlertBanner(alert) {
   const container = document.getElementById('alertBannerContainer');
   if (!container) return;
 
-  const isRefuel = alert.type === 'REFUEL';
+  const isTheft = alert.type === 'THEFT';
   const banner = document.createElement('div');
-  banner.className = `alert-banner ${isRefuel ? 'refuel' : ''}`;
+  banner.className = `alert-banner ${isTheft ? 'THEFT' : 'REFUEL'}`;
   banner.innerHTML = `
     <div class="alert-content">
-      <span style="font-size: 1.4rem;">${isRefuel ? '⛽' : '🚨'}</span>
+      <span style="font-size: 1.4rem;">${isTheft ? '🚨' : '⛽'}</span>
       <div>
-        <strong>${alert.title} [${alert.vehicleNumber}]</strong>
-        <div style="font-size: 0.82rem; opacity: 0.9;">${alert.message} • Lat: ${alert.lat}, Lng: ${alert.lng}</div>
+        <span class="alert-title">${alert.title} [${alert.vehicleNumber}]</span>
+        <div style="font-size: 0.84rem; opacity: 0.9; margin-top: 2px;">${alert.message} • Coordinates: ${alert.lat}, ${alert.lng}</div>
       </div>
     </div>
-    <button class="alert-close" onclick="this.parentElement.remove()">✕</button>
+    <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="this.closest('.alert-banner').remove()">✕</button>
   `;
 
   container.innerHTML = '';
@@ -329,7 +459,7 @@ function sendRemoteCommand(cmdText) {
   .then(data => {
     if (data.success) {
       if (window.SimulatorController) {
-        window.SimulatorController.logTerminal(`[Success] Packet transmitted to device socket.`, 'resp');
+        window.SimulatorController.logTerminal(`[Success] Packet transmitted to device TCP socket.`, 'resp');
       }
     } else {
       if (window.SimulatorController) {
@@ -348,6 +478,8 @@ function sendRemoteCommand(cmdText) {
 
 window.App = {
   selectDevice,
+  filterFleet,
+  selectCategory,
   sendRemoteCommand,
   openAddDeviceModal,
   closeAddDeviceModal,

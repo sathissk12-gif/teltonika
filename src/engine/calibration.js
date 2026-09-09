@@ -48,6 +48,17 @@ const TANK_PRESETS = {
       { raw: 75, liters: 44 },
       { raw: 100, liters: 60 }
     ]
+  },
+  'pulsar_15': {
+    name: 'Bajaj Pulsar 150 (15L Tank)',
+    capacity: 15,
+    points: [
+      { raw: 0, liters: 0 },
+      { raw: 25, liters: 3.75 },
+      { raw: 50, liters: 7.5 },
+      { raw: 75, liters: 11.25 },
+      { raw: 100, liters: 15 }
+    ]
   }
 };
 
