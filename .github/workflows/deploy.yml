@@ -36,9 +36,10 @@ jobs:
 
             cd "$PROJECT_DIR"
 
-            echo "📥 Pulling latest changes from main..."
-            git reset --hard HEAD
-            git pull origin main
+            echo "📥 Fetching and syncing latest changes from origin/main..."
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
 
             echo "📦 Installing production dependencies..."
             npm install --production --no-audit --no-fund
