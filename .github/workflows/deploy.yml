@@ -1,0 +1,50 @@
+name: Deploy Teltonika Telematics to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Auto Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Starting Teltonika Telematics deployment..."
+
+            PROJECT_DIR="${{ secrets.VPS_TARGET_DIR || '/opt/apps/teltonika_telematics' }}"
+
+            if [ ! -d "$PROJECT_DIR/.git" ]; then
+              echo "📂 Cloning repository to $PROJECT_DIR..."
+              git clone https://github.com/${{ github.repository }}.git "$PROJECT_DIR"
+            fi
+
+            cd "$PROJECT_DIR"
+
+            echo "📥 Pulling latest changes from main..."
+            git reset --hard HEAD
+            git pull origin main
+
+            echo "📦 Installing production dependencies..."
+            npm install --production --no-audit --no-fund
+
+            echo "🔄 Restarting teltonika-telematics in PM2..."
+            pm2 restart teltonika-telematics --update-env || pm2 start ecosystem.config.js
+            pm2 save
+
+            echo "🎉 Deployed commit: $(git rev-parse --short HEAD)"
