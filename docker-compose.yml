@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  teltonika-telematics:
+    build: .
+    container_name: teltonika_telematics_server
+    restart: always
+    ports:
+      - "5023:5023"    # Teltonika GPS TCP Listener
+      - "3001:3001"    # Web Dashboard & REST API
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - TCP_PORT=5023
+      - HTTP_PORT=3001
+      - SQLITE_DB_PATH=./data/telematics.db

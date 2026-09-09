@@ -1,0 +1,33 @@
+{
+  "name": "teltonika-telematics-suite",
+  "version": "1.0.0",
+  "description": "Production-Ready Teltonika FMX150/FMB150 GPS & CAN Telematics Backend & Real-time Dashboard",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js --dev",
+    "test": "node test/test-all.js",
+    "simulate": "node src/simulator/simulateTrip.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "keywords": [
+    "teltonika",
+    "fmx150",
+    "fmb150",
+    "fmc150",
+    "fmm150",
+    "codec8",
+    "codec8extended",
+    "codec12",
+    "canbus",
+    "telematics",
+    "fuel-calibration"
+  ],
+  "author": "Traxen Telematics",
+  "license": "MIT"
+}
