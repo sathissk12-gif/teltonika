@@ -22,7 +22,7 @@
         }
       ],
       "status": "ONLINE",
-      "lastUpdated": "2026-09-10T07:45:00.000Z",
+      "lastUpdated": "2026-09-10T16:04:20.784Z",
       "lastTelemetry": {
         "odometer": 1.72,
         "engineRpm": 849,
@@ -44,7 +44,7 @@
         "isValid": true,
         "engineLoad": 0,
         "engineHours": 0.15,
-        "oilPressure": 0,
+        "oilPressure": null,
         "engineOilTemp": 0,
         "acceleratorPedal": 0,
         "currentGear": 0,
@@ -99,8 +99,133 @@
           "241": 40494,
           "388": "0031C22F411B0024001632323859534643",
           "866": 528
-        }
-      }
+        },
+        "instantMileage": 0,
+        "avgMileage": 0,
+        "tripDistance": 0,
+        "tripFuel": 0,
+        "costPerKm": 0,
+        "fuelRateLitersPerHour": 0,
+        "ecmTotalFuelConsumed": 0,
+        "injectionState": "ACTIVE_INJECTION",
+        "engineWorktimeCounted": 9,
+        "gnssPdop": null,
+        "gnssHdop": null,
+        "sleepMode": 0
+      },
+      "id": "353742372466615",
+      "numberPlate": "TN-30-AZ-1234",
+      "registrationNumber": "TN-30-AZ-1234",
+      "vehicleType": "CAR",
+      "simProvider": "Airtel",
+      "protocol": "Teltonika Codec 8 Extended",
+      "userIds": [
+        "usr_cust_01"
+      ],
+      "acEnabled": false,
+      "callAlertEnabled": false,
+      "ownerName": "",
+      "simNumber": "",
+      "licenseId": null,
+      "license": null,
+      "callAlertPhoneNumber": "",
+      "positionStoreIntervalSeconds": 10,
+      "statusRetentionMonths": 12,
+      "active": true,
+      "updatedAt": "2026-09-10T16:04:20.784Z",
+      "createdAt": "2026-09-10T15:10:23.955Z"
+    }
+  },
+  "users": {
+    "usr_admin_01": {
+      "id": "usr_admin_01",
+      "name": "Master Administrator",
+      "email": "admin@traxen.io",
+      "phone": "+91 98765 43210",
+      "role": "ADMIN",
+      "status": "ACTIVE",
+      "address": "Traxen Global Tech Park, Chennai",
+      "supportPhone": "+91 98765 43210",
+      "supportEmail": "support@traxen.io",
+      "supportAddress": "Tower 4, OMR, Chennai, India",
+      "assignedVehicleIds": [],
+      "createdAt": "2026-09-10T15:10:13.920Z"
+    },
+    "usr_dealer_01": {
+      "id": "usr_dealer_01",
+      "name": "Apex Fleet Solutions (Dealer)",
+      "email": "dealer@apextelematics.in",
+      "phone": "+91 94440 12345",
+      "role": "DEALER",
+      "status": "ACTIVE",
+      "address": "Salem City Center, Tamil Nadu",
+      "supportPhone": "+91 94440 12345",
+      "supportPhone2": "+91 94440 67890",
+      "supportAddress": "Opp. New Bus Stand, Salem - 636004",
+      "supportEmail": "care@apextelematics.in",
+      "assignedVehicleIds": [],
+      "createdAt": "2026-09-10T15:10:13.922Z"
+    },
+    "usr_cust_01": {
+      "id": "usr_cust_01",
+      "name": "Rajesh Logistics & Transport",
+      "email": "rajesh@logistics.com",
+      "phone": "+91 98421 55667",
+      "role": "CUSTOMER",
+      "status": "ACTIVE",
+      "address": "42 Bypass Road, Namakkal, TN",
+      "assignedVehicleIds": [],
+      "createdAt": "2026-09-10T15:10:13.922Z"
+    },
+    "usr_driver_01": {
+      "id": "usr_driver_01",
+      "name": "Murugan (Driver)",
+      "email": "murugan.driver@traxen.io",
+      "phone": "+91 97890 22334",
+      "role": "DRIVER",
+      "status": "ACTIVE",
+      "address": "Coimbatore, TN",
+      "assignedVehicleIds": [],
+      "createdAt": "2026-09-10T15:10:13.922Z"
+    }
+  },
+  "licenses": {
+    "lic_001": {
+      "id": "lic_001",
+      "licenseKey": "TRX-1Y-9824-A1BC",
+      "durationValue": 1,
+      "durationUnit": "years",
+      "durationInfo": "1 Year Full Telematics & CAN Suite",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-10T15:10:13.922Z",
+      "activatedAt": "2026-09-10T15:10:13.922Z",
+      "expiresAt": "2027-09-10T15:10:13.922Z",
+      "dealerId": "usr_dealer_01",
+      "vehicleId": "353742372466615",
+      "vehicleNumberPlate": "TN-30-AZ-1234",
+      "createdBy": "Master Administrator"
+    },
+    "lic_002": {
+      "id": "lic_002",
+      "licenseKey": "TRX-2Y-5512-D4EF",
+      "durationValue": 2,
+      "durationUnit": "years",
+      "durationInfo": "2 Years Premium Fleet License",
+      "status": "AVAILABLE",
+      "createdAt": "2026-09-10T15:10:13.922Z",
+      "dealerId": "usr_dealer_01",
+      "createdBy": "Master Administrator"
+    },
+    "lic_003": {
+      "id": "lic_003",
+      "licenseKey": "TRX-6M-7731-X9YZ",
+      "durationValue": 6,
+      "durationUnit": "months",
+      "durationInfo": "6 Months Standard Tracking",
+      "status": "AVAILABLE",
+      "createdAt": "2026-09-10T15:10:13.922Z",
+      "dealerId": "usr_dealer_01",
+      "createdBy": "Master Administrator"
     }
   },
   "positions": [
@@ -673,5 +798,6 @@
     }
   ],
   "alerts": [],
-  "commandLogs": []
+  "commandLogs": [],
+  "trips": []
 }

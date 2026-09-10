@@ -48,7 +48,7 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
     setCanVal('canOilPressure', telemetry.oilPressure !== undefined && telemetry.oilPressure !== 0 ? `${telemetry.oilPressure} bar` : '-- bar');
     setCanVal('canOilTemp', telemetry.engineOilTemp ? `${telemetry.engineOilTemp} °C` : '-- °C');
     setCanVal('canEngineHours', telemetry.engineHours ? `${telemetry.engineHours.toFixed(1)} h` : '0.0 h');
-    setCanVal('canGear', telemetry.currentGear !== undefined && telemetry.currentGear !== 0 ? `Gear ${telemetry.currentGear}` : 'N');
+    setCanVal('canGear', telemetry.gearLabel || (telemetry.currentGear !== undefined && telemetry.currentGear !== 0 ? `Gear ${telemetry.currentGear}` : 'N'));
     setCanVal('canPto', telemetry.ptoState ? 'ENGAGED 🟢' : 'OFF', telemetry.ptoState ? 'active' : 'inactive');
   } else {
     // Offline Safe Mode: Zero dynamic motion gauges, preserve static readings
@@ -59,7 +59,7 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
     setCanVal('canOilPressure', telemetry.oilPressure !== undefined && telemetry.oilPressure !== 0 ? `${telemetry.oilPressure} bar` : '-- bar');
     setCanVal('canOilTemp', telemetry.engineOilTemp ? `${telemetry.engineOilTemp} °C` : '-- °C');
     setCanVal('canEngineHours', telemetry.engineHours ? `${telemetry.engineHours.toFixed(1)} h` : '0.0 h');
-    setCanVal('canGear', 'N');
+    setCanVal('canGear', telemetry.gearLabel || 'P');
     setCanVal('canPto', 'OFF', 'inactive');
   }
 
@@ -185,11 +185,13 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
 
   // 8. Update Map Slide-up Drawer
   const drawerSpeed = document.getElementById('drawerSpeed');
+  const drawerGear = document.getElementById('drawerGear');
   const drawerFuel = document.getElementById('drawerFuel');
   const drawerRpm = document.getElementById('drawerRpm');
   const drawerBattery = document.getElementById('drawerBattery');
 
   if (drawerSpeed) drawerSpeed.innerText = isOnline ? `${telemetry.speed || 0} km/h` : '0 km/h (Offline)';
+  if (drawerGear) drawerGear.innerText = isOnline ? (telemetry.gearLabel || (telemetry.currentGear !== undefined && telemetry.currentGear !== 0 ? `Gear ${telemetry.currentGear}` : 'N')) : 'P';
   if (drawerFuel) drawerFuel.innerText = `${fuelLiters} L (${fuelPct}%)`;
   if (drawerRpm) drawerRpm.innerText = isOnline ? `${telemetry.engineRpm || 0} RPM` : '0 RPM';
   if (drawerBattery) drawerBattery.innerText = `${telemetry.externalVoltage || telemetry.batteryVoltage || 0} V`;

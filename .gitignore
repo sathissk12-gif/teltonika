@@ -9,6 +9,8 @@ node_modules/
 # Databases & local state
 data/*.db
 data/*.db-journal
+data/*.db-wal
+data/*.db-shm
 data/*.sqlite
 data/*.sqlite-journal
 *.db

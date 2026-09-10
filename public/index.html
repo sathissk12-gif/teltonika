@@ -46,7 +46,10 @@
           <span class="ws-pulse-dot"></span>
           <span id="wsStatusText">WS Live ⚡</span>
         </div>
-        <button class="btn-header-add" onclick="App.openAddDeviceModal()">
+        <button class="btn-header-admin" onclick="AdminApp.openAdminModal('vehicles')">
+          <span>⚙️</span> Admin Center
+        </button>
+        <button class="btn-header-add" onclick="AdminApp.openCreateVehicleModal()">
           <span>➕</span> Add Vehicle
         </button>
       </div>
@@ -145,10 +148,14 @@
             <div id="drawerStatusBadge" class="traxen-status-badge OFFLINE">OFFLINE</div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;">
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 8px;">
             <div class="card-metric-box">
               <div class="card-metric-label">Speed</div>
               <div id="drawerSpeed" class="card-metric-val">0 km/h</div>
+            </div>
+            <div class="card-metric-box">
+              <div class="card-metric-label">Gear</div>
+              <div id="drawerGear" class="card-metric-val highlight" style="color: var(--traxen-amber-light); font-weight: 900;">N</div>
             </div>
             <div class="card-metric-box">
               <div class="card-metric-label">Fuel (Calib)</div>
@@ -253,8 +260,8 @@
               <span id="canEngineHours" class="can-item-val">0.0 h</span>
             </div>
             <div class="can-item-row">
-              <span class="can-item-label">Current Gear</span>
-              <span id="canGear" class="can-item-val">N</span>
+              <span class="can-item-label">⚙️ Current Transmission Gear</span>
+              <span id="canGear" class="can-item-val highlight" style="color: var(--traxen-amber-light); font-size: 1.05rem; font-weight: 900;">N</span>
             </div>
             <div class="can-item-row">
               <span class="can-item-label">Power Take-Off (PTO)</span>
@@ -679,91 +686,480 @@
   </nav>
 
   <!-- =========================================================================
-       TRAXEN ADD VEHICLE MODAL (Category Icon Selector)
+       TRAXEN ADMIN COMMAND CENTER (Enterprise Modal Suite)
        ========================================================================= -->
-  <div id="addDeviceModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div style="font-size: 1.1rem; font-weight: 800; color: #fff;">
-          <span>➕</span> Register Traxen Vehicle
+  <div id="adminCommandModal" class="admin-modal-overlay">
+    <div class="admin-modal-container">
+      <!-- Admin Header -->
+      <div class="admin-modal-header">
+        <div class="admin-header-title-box">
+          <span class="admin-logo-badge">⚙️</span>
+          <div>
+            <h2>Traxen Admin Command Center</h2>
+            <p>Fleet Hierarchy, Vehicle Provisioning, Role RBAC & License Allocation</p>
+          </div>
         </div>
-        <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="App.closeAddDeviceModal()">✕</button>
+        <div class="admin-header-nav">
+          <button class="admin-nav-tab active" data-tab="vehicles">🚗 Vehicles</button>
+          <button class="admin-nav-tab" data-tab="users">👥 Users & Roles</button>
+          <button class="admin-nav-tab" data-tab="licenses">💳 Licenses</button>
+          <button class="admin-nav-tab" data-tab="stats">📊 Fleet Stats</button>
+          <button class="admin-modal-close" onclick="AdminApp.closeAdminModal()">✕</button>
+        </div>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <div class="form-group">
-          <label class="form-label">Device IMEI (15 Digits) *</label>
-          <input id="inputImei" type="text" placeholder="e.g. 353742372466615" class="form-control" style="font-family: var(--font-mono);">
+      <!-- Admin Modal Body -->
+      <div class="admin-modal-body">
+        
+        <!-- PANE 1: VEHICLES -->
+        <div id="adminPane_vehicles" class="admin-tab-pane active">
+          <div class="admin-toolbar">
+            <div class="toolbar-search-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="adminVehicleSearch" class="admin-input-search" placeholder="Search plate number, IMEI, SIM, owner...">
+            </div>
+            <div class="toolbar-actions">
+              <select id="adminVehicleStatusFilter" class="admin-select-filter">
+                <option value="">All Statuses</option>
+                <option value="ONLINE">🟢 Online Only</option>
+                <option value="MOVING">⚡ Moving Only</option>
+                <option value="IDLE">🟡 Idle Only</option>
+                <option value="OFFLINE">⚪ Offline Only</option>
+              </select>
+              <button class="btn-admin-primary" onclick="AdminApp.openCreateVehicleModal()">
+                <span>➕</span> Add Vehicle
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-table-responsive">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Vehicle / Plate</th>
+                  <th>Hardware IMEI / Protocol</th>
+                  <th>SIM & Network</th>
+                  <th>License Status</th>
+                  <th>Assigned Users</th>
+                  <th>Live Status</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminVehiclesTableBody">
+                <!-- Dynamically populated via AdminApp.loadVehicles() -->
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Vehicle Registration Number *</label>
-          <input id="inputPlate" type="text" placeholder="e.g. TN-01-AB-1234" class="form-control">
+        <!-- PANE 2: USERS -->
+        <div id="adminPane_users" class="admin-tab-pane">
+          <div class="admin-toolbar">
+            <div class="toolbar-search-wrap">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="adminUserSearch" class="admin-input-search" placeholder="Search user by name, email, phone, role...">
+            </div>
+            <div class="toolbar-actions">
+              <select id="adminUserRoleFilter" class="admin-select-filter">
+                <option value="">All Roles</option>
+                <option value="ADMIN">Admins</option>
+                <option value="DEALER">Dealers</option>
+                <option value="CUSTOMER">Customers</option>
+                <option value="DRIVER">Drivers</option>
+              </select>
+              <button class="btn-admin-primary" onclick="AdminApp.openCreateUserModal()">
+                <span>➕</span> Add User
+              </button>
+            </div>
+          </div>
+
+          <div class="admin-table-responsive">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>User Profile</th>
+                  <th>Role</th>
+                  <th>Contact Info</th>
+                  <th>Assigned Vehicles</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTableBody">
+                <!-- Dynamically populated via AdminApp.loadUsers() -->
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Vehicle Category</label>
-          <div class="category-picker-grid" id="categoryPicker">
-            <div class="category-option selected" data-cat="OPEN TRUCK" onclick="App.selectCategory('OPEN TRUCK', this)">
-              <img src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" alt="Truck">
-              <span>Truck</span>
+        <!-- PANE 3: LICENSES -->
+        <div id="adminPane_licenses" class="admin-tab-pane">
+          <div class="admin-toolbar">
+            <div class="toolbar-actions">
+              <select id="adminLicenseStatusFilter" class="admin-select-filter">
+                <option value="">All Licenses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="AVAILABLE">Available Inventory</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
             </div>
-            <div class="category-option" data-cat="BIKE" onclick="App.selectCategory('BIKE', this)">
-              <img src="assets/icons/vehicle/sideview/moving/BIKE.png" alt="Bike">
-              <span>Bike</span>
+            <button class="btn-admin-primary" onclick="AdminApp.openGenerateLicenseModal()">
+              <span>⚡</span> Generate License Keys
+            </button>
+          </div>
+
+          <div class="admin-table-responsive">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>License Key</th>
+                  <th>Duration Tier</th>
+                  <th>Status</th>
+                  <th>Assigned Vehicle</th>
+                  <th>Expires At</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="adminLicensesTableBody">
+                <!-- Dynamically populated via AdminApp.loadLicenses() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PANE 4: FLEET STATS -->
+        <div id="adminPane_stats" class="admin-tab-pane">
+          <div class="stats-overview-grid">
+            <div class="stat-kpi-card">
+              <div class="stat-kpi-val" id="statTotalVehicles">0</div>
+              <div class="stat-kpi-lbl">Total Vehicles</div>
             </div>
-            <div class="category-option" data-cat="CAR" onclick="App.selectCategory('CAR', this)">
-              <img src="assets/icons/vehicle/sideview/moving/CAR.png" alt="Car">
-              <span>Car</span>
+            <div class="stat-kpi-card kpi-green">
+              <div class="stat-kpi-val" id="statOnlineVehicles">0</div>
+              <div class="stat-kpi-lbl">Online Live</div>
             </div>
-            <div class="category-option" data-cat="BUS" onclick="App.selectCategory('BUS', this)">
-              <img src="assets/icons/vehicle/sideview/moving/BUS.png" alt="Bus">
-              <span>Bus</span>
+            <div class="stat-kpi-card kpi-blue">
+              <div class="stat-kpi-val" id="statMovingVehicles">0</div>
+              <div class="stat-kpi-lbl">Running / In Motion</div>
             </div>
-            <div class="category-option" data-cat="MINI TRUCK" onclick="App.selectCategory('MINI TRUCK', this)">
-              <img src="assets/icons/vehicle/sideview/moving/MINI TRUCK.png" alt="Mini Truck">
-              <span>Mini Truck</span>
+            <div class="stat-kpi-card kpi-orange">
+              <div class="stat-kpi-val" id="statIdleVehicles">0</div>
+              <div class="stat-kpi-lbl">Idle (Ignition ON)</div>
             </div>
-            <div class="category-option" data-cat="CONTAINER" onclick="App.selectCategory('CONTAINER', this)">
-              <img src="assets/icons/vehicle/sideview/moving/CONTAINER.png" alt="Container">
-              <span>Container</span>
+            <div class="stat-kpi-card kpi-purple">
+              <div class="stat-kpi-val" id="statTotalUsers">0</div>
+              <div class="stat-kpi-lbl">Total Registered Users</div>
             </div>
-            <div class="category-option" data-cat="AUTO-RICKSHAW" onclick="App.selectCategory('AUTO-RICKSHAW', this)">
-              <img src="assets/icons/vehicle/sideview/moving/AUTO-RICKSHAW.png" alt="Auto">
-              <span>Auto</span>
+            <div class="stat-kpi-card kpi-gold">
+              <div class="stat-kpi-val" id="statActiveLicenses">0</div>
+              <div class="stat-kpi-lbl">Active Licenses</div>
             </div>
-            <div class="category-option" data-cat="TRACTOR" onclick="App.selectCategory('TRACTOR', this)">
-              <img src="assets/icons/vehicle/sideview/moving/TRACTOR.png" alt="Tractor">
-              <span>Tractor</span>
+          </div>
+
+          <div class="admin-section-box" style="margin-top: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 class="section-box-title" style="margin:0;">📦 CAN Telemetry Database & 90-Day Retention</h3>
+              <button type="button" class="admin-secondary-btn" style="padding:4px 10px; font-size:11px; cursor:pointer;" onclick="AdminApp.runDatabaseMaintenance()">⚡ Purge > 90 Days</button>
+            </div>
+            <div class="stat-kpi-grid" style="margin-top: 15px;">
+              <div class="stat-kpi-card kpi-blue">
+                <div class="stat-kpi-val" id="statDbRecords">0</div>
+                <div class="stat-kpi-lbl">CAN Records (SQLite WAL)</div>
+              </div>
+              <div class="stat-kpi-card kpi-purple">
+                <div class="stat-kpi-val" id="statDbSize">0 MB</div>
+                <div class="stat-kpi-lbl">Database Size</div>
+              </div>
+              <div class="stat-kpi-card kpi-emerald">
+                <div class="stat-kpi-val" id="statDbRetention">90 Days</div>
+                <div class="stat-kpi-lbl">Retention (3 Months)</div>
+              </div>
+              <div class="stat-kpi-card kpi-gold">
+                <div class="stat-kpi-val" id="statDbActiveTracked">0</div>
+                <div class="stat-kpi-lbl">Live Streaming Units</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="admin-section-box" style="margin-top: 20px;">
+            <h3 class="section-box-title">Vehicle Category Breakdown</h3>
+            <div id="adminVehicleTypeStatsGrid" class="vehicle-type-stats-grid">
+              <!-- Dynamically populated via AdminApp.loadStats() -->
             </div>
           </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Vehicle Model Description</label>
-          <input id="inputModel" type="text" placeholder="e.g. Bajaj Pulsar 150 / Ashok Leyland Captain" class="form-control">
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       VEHICLE CREATE / EDIT DRAWER (12-Category Grid, SIM & License Config)
+       ========================================================================= -->
+  <div id="vehicleFormDrawer" class="admin-drawer-overlay">
+    <div class="admin-drawer-panel">
+      <div class="drawer-header">
+        <h3 id="vehicleModalTitle">Add New Vehicle</h3>
+        <button class="drawer-close-btn" onclick="AdminApp.closeVehicleFormDrawer()">✕</button>
+      </div>
+
+      <form id="vehicleForm" class="drawer-scroll-body" onsubmit="AdminApp.saveVehicle(event)">
+        <!-- Section 1: Plate & Category -->
+        <div class="drawer-section">
+          <div class="section-heading">1. Vehicle Identification & Category</div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Registration / Number Plate *</label>
+              <input type="text" id="vFormPlate" class="form-control" placeholder="e.g. TN-30-AZ-1234" required>
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Owner / Fleet Name</label>
+              <input type="text" id="vFormOwnerName" class="form-control" placeholder="e.g. Rajesh Logistics">
+            </div>
+          </div>
+
+          <label class="form-label" style="margin-top: 10px;">Select Vehicle Type (12 Categories) *</label>
+          <div id="vehicleTypePickerGrid" class="type-picker-grid">
+            <!-- 12 Vehicle Types populated dynamically via AdminApp.renderVehicleTypePicker() -->
+          </div>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-          <div style="flex: 1;" class="form-group">
-            <label class="form-label">Tank Capacity (L)</label>
-            <input id="inputTankCap" type="number" value="480" class="form-control" style="font-family: var(--font-mono);">
+        <!-- Section 2: Hardware & SIM -->
+        <div class="drawer-section">
+          <div class="section-heading">2. Hardware, SIM & Telematics Protocol</div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Tracker IMEI (15 Digits) *</label>
+              <input type="text" id="vFormImei" class="form-control mono-input" placeholder="e.g. 353742372466615" required>
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Protocol Standard</label>
+              <select id="vFormProtocol" class="form-control">
+                <option value="Teltonika Codec 8 Extended">Teltonika Codec 8 Extended (FMB/FMC)</option>
+                <option value="Teltonika Codec 8">Teltonika Codec 8 Standard</option>
+                <option value="GT06">GT06 Protocol</option>
+                <option value="GS03">GS03 Protocol</option>
+                <option value="H02">H02 Protocol</option>
+                <option value="TK103">TK103 Protocol</option>
+                <option value="GL200">Queclink GL200</option>
+              </select>
+            </div>
           </div>
-          <div style="flex: 1;" class="form-group">
-            <label class="form-label">Fuel Sensor</label>
-            <select id="inputFuelSource" class="form-control">
-              <option value="CAN_PERCENT">CAN Bus % (AVL 83)</option>
-              <option value="CAN_LITERS">Direct CAN Liters (AVL 84)</option>
-              <option value="ANALOG_AIN1">Analog Float (AIN1)</option>
+
+          <div class="form-row" style="margin-top: 10px;">
+            <div class="form-group flex-1">
+              <label class="form-label">SIM Phone Number</label>
+              <input type="text" id="vFormSimNumber" class="form-control mono-input" placeholder="e.g. 9876543210">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">SIM Carrier Provider</label>
+              <div id="simProviderPicker" class="sim-provider-group">
+                <!-- Airtel, Jio, Vi, BSNL radio pills -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Smart License Duration -->
+        <div class="drawer-section">
+          <div class="section-heading">3. License Duration Plan</div>
+          <p class="section-desc">Select validity period to activate telemetry and CAN Bus monitoring.</p>
+          <div id="licensePresetPicker" class="license-preset-grid">
+            <!-- 6M, 1Y, 2Y, 3Y presets -->
+          </div>
+        </div>
+
+        <!-- Section 4: Customer User Assignment -->
+        <div class="drawer-section">
+          <div class="section-heading">4. User / Customer Access Assignment</div>
+          <p class="section-desc">Check users who can monitor and view live telemetry for this vehicle.</p>
+          <div id="vehicleUsersCheckboxList" class="user-checkbox-list">
+            <!-- Populated via AdminApp.populateUserCheckboxes() -->
+          </div>
+        </div>
+
+        <!-- Section 5: CAN & Fuel Setup -->
+        <div class="drawer-section">
+          <div class="section-heading">5. CAN Bus & Fuel Tank Setup</div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Fuel Tank Capacity (Liters)</label>
+              <input type="number" id="vFormTankCapacity" class="form-control mono-input" value="480">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Fuel Telemetry Source</label>
+              <select id="vFormFuelSource" class="form-control">
+                <option value="CAN_PERCENT">CAN Bus Fuel % (IO 83)</option>
+                <option value="CAN_LITERS">Direct CAN Liters (IO 84)</option>
+                <option value="ANALOG_AIN1">Analog Float Sensor (AIN1)</option>
+                <option value="RS485_LLS">Digital RS485 Fuel Probe</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 6: Emergency & Call Alerts -->
+        <div class="drawer-section">
+          <div class="section-heading">6. Alerts & Telemetry Triggers</div>
+          <div class="toggle-row">
+            <div>
+              <strong>AC Telemetry Alarm</strong>
+              <div class="text-sub">Monitor Air Conditioning ignition & idle fuel penalty</div>
+            </div>
+            <input type="checkbox" id="vFormAcAlert" class="cyber-switch">
+          </div>
+          <div class="toggle-row" style="margin-top: 12px;">
+            <div>
+              <strong>Emergency Call Alert</strong>
+              <div class="text-sub">Trigger immediate automated voice call on theft/tamper</div>
+            </div>
+            <input type="checkbox" id="vFormCallAlert" class="cyber-switch">
+          </div>
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label">Emergency Call Alert Phone Number</label>
+            <input type="text" id="vFormCallAlertPhone" class="form-control" placeholder="e.g. +91 98765 43210">
+          </div>
+        </div>
+
+        <div class="drawer-footer">
+          <button type="button" class="btn-drawer-cancel" onclick="AdminApp.closeVehicleFormDrawer()">Cancel</button>
+          <button type="submit" class="btn-drawer-save">Save Vehicle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       USER CREATE / EDIT MODAL
+       ========================================================================= -->
+  <div id="userFormModal" class="admin-modal-overlay">
+    <div class="admin-modal-card">
+      <div class="drawer-header">
+        <h3 id="userModalTitle">Add New User Account</h3>
+        <button class="drawer-close-btn" onclick="AdminApp.closeUserFormModal()">✕</button>
+      </div>
+
+      <form id="userForm" class="drawer-scroll-body" onsubmit="AdminApp.saveUser(event)">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input type="text" id="uFormName" class="form-control" placeholder="e.g. Rajesh Kumar" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="uFormEmail" class="form-control" placeholder="user@company.com">
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Phone Number</label>
+            <input type="text" id="uFormPhone" class="form-control" placeholder="+91 98765 43210">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label">Account Role *</label>
+            <select id="uFormRole" class="form-control" onchange="AdminApp.toggleDealerSupportFields(this.value)">
+              <option value="CUSTOMER">CUSTOMER (Fleet Owner)</option>
+              <option value="DEALER">DEALER (Sub-Admin with License Pool)</option>
+              <option value="ADMIN">ADMIN (Full Master Control)</option>
+              <option value="DRIVER">DRIVER (Driver App Mode)</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Office / Residential Address</label>
+            <input type="text" id="uFormAddress" class="form-control" placeholder="City, State">
+          </div>
+        </div>
+
+        <!-- Dealer Support Contacts (Conditional) -->
+        <div id="dealerSupportFields" style="display: none; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1); margin-top: 10px;">
+          <div style="font-weight: 700; color: #ff9500; font-size: 0.85rem; margin-bottom: 8px;">Dealer Support Card Settings</div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label class="form-label">Support Helpdesk Phone</label>
+              <input type="text" id="uFormSupportPhone" class="form-control" placeholder="+91 94440 12345">
+            </div>
+            <div class="form-group flex-1">
+              <label class="form-label">Support Helpdesk Email</label>
+              <input type="email" id="uFormSupportEmail" class="form-control" placeholder="care@dealer.in">
+            </div>
+          </div>
+          <div class="form-group" style="margin-top: 8px;">
+            <label class="form-label">Support Office Address</label>
+            <input type="text" id="uFormSupportAddress" class="form-control" placeholder="Dealer Service Center, City">
+          </div>
+        </div>
+
+        <div class="drawer-footer" style="margin-top: 20px;">
+          <button type="button" class="btn-drawer-cancel" onclick="AdminApp.closeUserFormModal()">Cancel</button>
+          <button type="submit" class="btn-drawer-save">Save User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       GENERATE LICENSE BATCH MODAL
+       ========================================================================= -->
+  <div id="generateLicenseModal" class="admin-modal-overlay">
+    <div class="admin-modal-card" style="max-width: 480px;">
+      <div class="drawer-header">
+        <h3>Generate Batch License Keys</h3>
+        <button class="drawer-close-btn" onclick="AdminApp.closeGenerateLicenseModal()">✕</button>
+      </div>
+
+      <form onsubmit="AdminApp.generateLicenses(event)" style="padding: 16px;">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label class="form-label">Duration Value</label>
+            <input type="number" id="genDurationValue" class="form-control" value="1" min="1" required>
+          </div>
+          <div class="form-group flex-1">
+            <label class="form-label">Duration Unit</label>
+            <select id="genDurationUnit" class="form-control">
+              <option value="years">Years</option>
+              <option value="months">Months</option>
+              <option value="days">Days</option>
             </select>
           </div>
         </div>
-
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-          <button class="btn-secondary" onclick="App.closeAddDeviceModal()">Cancel</button>
-          <button class="btn-primary" onclick="App.saveNewDevice()">Save Vehicle</button>
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label">Quantity (Batch Count)</label>
+          <input type="number" id="genCount" class="form-control" value="5" min="1" max="50" required>
         </div>
+        <div class="drawer-footer" style="margin-top: 20px;">
+          <button type="button" class="btn-drawer-cancel" onclick="AdminApp.closeGenerateLicenseModal()">Cancel</button>
+          <button type="submit" class="btn-drawer-save">Generate Keys</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       RENEW LICENSE MODAL
+       ========================================================================= -->
+  <div id="renewLicenseModal" class="admin-modal-overlay">
+    <div class="admin-modal-card" style="max-width: 480px;">
+      <div class="drawer-header">
+        <h3>Renew Vehicle License</h3>
+        <button class="drawer-close-btn" onclick="AdminApp.closeRenewLicenseModal()">✕</button>
       </div>
+
+      <form onsubmit="AdminApp.submitRenewLicense(event)" style="padding: 16px;">
+        <input type="hidden" id="renewVehicleImei">
+        <div class="form-group">
+          <label class="form-label">Select Extension Duration</label>
+          <select id="renewDurationDays" class="form-control">
+            <option value="180">6 Months (180 Days)</option>
+            <option value="365" selected>1 Year (365 Days)</option>
+            <option value="730">2 Years (730 Days)</option>
+            <option value="1095">3 Years (1095 Days)</option>
+          </select>
+        </div>
+        <div class="drawer-footer" style="margin-top: 20px;">
+          <button type="button" class="btn-drawer-cancel" onclick="AdminApp.closeRenewLicenseModal()">Cancel</button>
+          <button type="submit" class="btn-drawer-save">Renew License Now</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -778,6 +1174,7 @@
   <script src="js/gauges.js"></script>
   <script src="js/calibration.js"></script>
   <script src="js/simulator.js"></script>
+  <script src="js/admin.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

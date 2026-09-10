@@ -294,10 +294,14 @@ function renderVehicleCards() {
         </div>
 
         <!-- Key CAN Metrics Grid -->
-        <div class="card-metrics-grid">
+        <div class="card-metrics-grid" style="grid-template-columns: repeat(5, 1fr);">
           <div class="card-metric-box">
             <div class="card-metric-label">RPM</div>
             <div class="card-metric-val">${displayRpm}</div>
+          </div>
+          <div class="card-metric-box">
+            <div class="card-metric-label">Gear</div>
+            <div class="card-metric-val" style="color: var(--traxen-amber-light); font-weight: 800;">${isOnline ? (tel.gearLabel || (tel.currentGear ? `${tel.currentGear}` : 'N')) : 'P'}</div>
           </div>
           <div class="card-metric-box">
             <div class="card-metric-label">Coolant</div>

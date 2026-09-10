@@ -10,4 +10,5 @@ module.exports = {
   defaultTheftThresholdLiters: parseFloat(process.env.DEFAULT_THEFT_THRESHOLD_LITERS) || 5.0,
   defaultTheftWindowMinutes: parseInt(process.env.DEFAULT_THEFT_WINDOW_MINUTES, 10) || 10,
   defaultRefuelThresholdLiters: parseFloat(process.env.DEFAULT_REFUEL_THRESHOLD_LITERS) || 10.0,
+  retentionDays: parseInt(process.env.DATA_RETENTION_DAYS, 10) || 90, // 3 Months CAN Retention
 };
