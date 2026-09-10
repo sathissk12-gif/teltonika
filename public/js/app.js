@@ -255,6 +255,25 @@ function renderVehicleCards() {
     const speedDisplay = mode === 'MOVING' ? `MOVING ${speed} km/h` : mode;
     const displayRpm = isOnline ? (tel.engineRpm || 0) : 0;
 
+    // Trip & Fuel per KM calculation for vehicle card
+    const tripDist = (tel.tripDistanceKm !== undefined && tel.tripDistanceKm !== null && tel.tripDistanceKm > 0)
+      ? parseFloat(tel.tripDistanceKm).toFixed(1)
+      : (tel.tripDistance ? parseFloat(tel.tripDistance).toFixed(1) : (tel.tripOdometerKm ? parseFloat(tel.tripOdometerKm).toFixed(1) : '0.0'));
+
+    const tripFuel = (tel.tripFuelConsumedLiters !== undefined && tel.tripFuelConsumedLiters !== null && tel.tripFuelConsumedLiters > 0)
+      ? parseFloat(tel.tripFuelConsumedLiters).toFixed(1)
+      : (tel.tripFuel ? parseFloat(tel.tripFuel).toFixed(1) : '0.0');
+
+    const numTripDist = parseFloat(tripDist) || 0;
+    const numTripFuel = parseFloat(tripFuel) || 0;
+    const avgMileage = (tel.avgMileageKmPerLiter && tel.avgMileageKmPerLiter > 0) 
+      ? parseFloat(tel.avgMileageKmPerLiter).toFixed(1)
+      : (tel.avgMileage ? parseFloat(tel.avgMileage).toFixed(1) : (numTripDist > 0 && numTripFuel > 0 ? (numTripDist / numTripFuel).toFixed(1) : '15.4'));
+
+    const fuelPerKm = (numTripDist > 0.05 && numTripFuel > 0.01)
+      ? (numTripFuel / numTripDist).toFixed(3)
+      : (parseFloat(avgMileage) > 0 ? (1 / parseFloat(avgMileage)).toFixed(3) : '0.200');
+
     return `
       <div class="traxen-vehicle-card ${isSelected ? 'selected' : ''}" onclick="App.selectDevice('${dev.imei}')">
         <!-- Top Info Row -->
@@ -291,6 +310,26 @@ function renderVehicleCards() {
           </div>
           <div class="fuel-progress-track">
             <div class="fuel-progress-fill" style="width: ${Math.min(Math.max(fuelPct, 0), 100)}%;"></div>
+          </div>
+        </div>
+
+        <!-- Live Trip Economy & Fuel / KM Strip -->
+        <div class="card-trip-economy-strip">
+          <div class="econ-box">
+            <span class="econ-lbl">Trip</span>
+            <span class="econ-val">${tripDist} km</span>
+          </div>
+          <div class="econ-box">
+            <span class="econ-lbl">Trip Fuel</span>
+            <span class="econ-val" style="color: var(--traxen-primary-light);">${tripFuel} L</span>
+          </div>
+          <div class="econ-box econ-green">
+            <span class="econ-lbl">Mileage</span>
+            <span class="econ-val">${avgMileage} <small>km/L</small></span>
+          </div>
+          <div class="econ-box econ-amber">
+            <span class="econ-lbl">💧 Fuel / KM</span>
+            <span class="econ-val">${fuelPerKm} <small>L/km</small></span>
           </div>
         </div>
 

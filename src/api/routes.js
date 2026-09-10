@@ -588,7 +588,8 @@ module.exports = (tcpServer, wsBroadcaster) => {
   });
 
   router.get('/devices/:imei/trips', (req, res) => {
-    const trips = Database.getTrips(req.params.imei, parseInt(req.query.limit, 10) || 50);
+    const { from, to, limit } = req.query;
+    const trips = Database.getTrips(req.params.imei, parseInt(limit, 10) || 50, from || null, to || null);
     res.json({ success: true, count: trips.length, data: trips });
   });
 

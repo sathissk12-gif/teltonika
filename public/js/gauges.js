@@ -136,10 +136,22 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
     ? `${telemetry.vehicleRange} km` 
     : `${(parseFloat(fuelLiters || 25) * parseFloat(avgM || 15.4)).toFixed(0)} km`;
 
+  const numTripDist = parseFloat(tripDist) || 0;
+  const numTripFuel = parseFloat(tripFuel) || 0;
+  const fuelPerKm = (numTripDist > 0.05 && numTripFuel > 0.01) 
+    ? (numTripFuel / numTripDist).toFixed(3) 
+    : (parseFloat(avgM) > 0 ? (1 / parseFloat(avgM)).toFixed(3) : '0.200');
+
+  const idleWasteLiters = telemetry.idleFuelConsumed !== undefined 
+    ? parseFloat(telemetry.idleFuelConsumed).toFixed(1) 
+    : (telemetry.idleSeconds ? (telemetry.idleSeconds / 3600 * 1.2).toFixed(1) : '0.0');
+
   setCanVal('mileageInstantVal', instantM);
   setCanVal('mileageAvgVal', avgM);
   setCanVal('mileageTripDist', `${tripDist} km`);
   setCanVal('mileageTripFuel', `${tripFuel} L`);
+  setCanVal('mileageFuelPerKm', `${fuelPerKm} L/km`);
+  setCanVal('mileageIdleWaste', `${idleWasteLiters} L`);
   setCanVal('mileageCostPerKm', costKm);
   setCanVal('mileageRangeVal', estRange);
 

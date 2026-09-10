@@ -1,17 +1,18 @@
 /**
- * Traxen Telematics Suite - 90-Day CAN History, Route Playback & Fuel Events Controller
- * High-performance Leaflet route animation with live CAN HUD, Refuel/Theft logs & CSV Export.
+ * Traxen Telematics Suite - 90-Day CAN History, Route Playback & Trip-by-Trip Fuel/KM Audit
+ * High-performance Leaflet route animation with live CAN HUD, Trip Breakdown, Refuel/Theft logs & CSV Export.
  */
 
 const HistoryStudio = {
   activeImei: null,
   activeVehicle: null,
-  activeTab: 'playback', // 'playback' | 'fuelEvents' | 'canTable'
+  activeTab: 'playback', // 'playback' | 'tripsTable' | 'fuelEvents' | 'canTable'
   currentPreset: 'today',
 
-  // Playback state
+  // Telemetry state
   playbackPoints: [],
   fuelEvents: [],
+  trips: [],
   rawCanHistory: [],
   playbackIndex: 0,
   isPlaying: false,
@@ -27,7 +28,6 @@ const HistoryStudio = {
 
   // Initialize
   init() {
-    // Setup date defaults
     this.setDefaultDates('today');
   },
 
@@ -77,17 +77,17 @@ const HistoryStudio = {
   },
 
   openHistoryModal(imei, tab = 'playback') {
-    this.activeImei = imei || currentDeviceImei;
+    this.activeImei = imei || window.currentDeviceImei;
     if (!this.activeImei) {
-      if (allDevices && allDevices.length > 0) {
-        this.activeImei = allDevices[0].imei;
+      if (window.allDevices && window.allDevices.length > 0) {
+        this.activeImei = window.allDevices[0].imei;
       } else {
         alert('Please select or create a vehicle first.');
         return;
       }
     }
 
-    this.activeVehicle = allDevices.find(d => d.imei === this.activeImei) || {
+    this.activeVehicle = (window.allDevices && window.allDevices.find(d => d.imei === this.activeImei)) || {
       vehicleNumber: `TN-${this.activeImei.slice(-4)}`,
       model: 'Traxen Telematics Unit',
       category: 'OPEN TRUCK',
@@ -109,8 +109,8 @@ const HistoryStudio = {
 
     // Populate Vehicle Selector Dropdown in Modal
     const selectEl = document.getElementById('histVehicleSelect');
-    if (selectEl && allDevices) {
-      selectEl.innerHTML = allDevices.map(d => `
+    if (selectEl && window.allDevices) {
+      selectEl.innerHTML = window.allDevices.map(d => `
         <option value="${d.imei}" ${d.imei === this.activeImei ? 'selected' : ''}>
           ${d.vehicleNumber || d.numberPlate} (${d.category || 'Vehicle'})
         </option>
@@ -191,8 +191,9 @@ const HistoryStudio = {
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
 
     try {
-      const [playbackRes, fuelEventsRes, historyRes] = await Promise.all([
-        fetch(`/api/devices/${this.activeImei}/playback?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=3000`).then(r => r.json()),
+      const [playbackRes, tripsRes, fuelEventsRes, historyRes] = await Promise.all([
+        fetch(`/api/devices/${this.activeImei}/playback?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=4000`).then(r => r.json()),
+        fetch(`/api/devices/${this.activeImei}/trips?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=100`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/fuel-events?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/history?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=500`).then(r => r.json())
       ]);
@@ -212,6 +213,8 @@ const HistoryStudio = {
         gear: p.gearLabel || p.gear || (p.gearNumber ? `${p.gearNumber}` : (p.speed > 0 ? 'D' : 'N'))
       })).filter(p => p.latitude !== 0 && p.longitude !== 0);
 
+      this.trips = (tripsRes.success && tripsRes.data) ? tripsRes.data || [] : [];
+
       const rawFuelEvents = (fuelEventsRes.success && fuelEventsRes.data) ? fuelEventsRes.data.events || [] : [];
       this.fuelEvents = rawFuelEvents.map(e => ({
         ...e,
@@ -227,6 +230,9 @@ const HistoryStudio = {
       // Render Playback Map
       this.setupPlaybackRoute();
 
+      // Render Trips Tab
+      this.renderTripsList();
+
       // Render Fuel Events Tab
       this.renderFuelEventsList();
 
@@ -241,25 +247,42 @@ const HistoryStudio = {
 
   renderSummaryStats(playbackSummary, fuelSummary) {
     const elDistance = document.getElementById('histStatDistance');
+    const elFuelUsed = document.getElementById('histStatFuelUsed');
+    const elMileage = document.getElementById('histStatMileage');
+    const elFuelPerKm = document.getElementById('histStatFuelPerKm');
     const elMaxSpeed = document.getElementById('histStatMaxSpeed');
-    const elAvgSpeed = document.getElementById('histStatAvgSpeed');
-    const elMovingTime = document.getElementById('histStatMovingTime');
     const elFuelRefills = document.getElementById('histStatFuelRefills');
-    const elFuelDrops = document.getElementById('histStatFuelDrops');
     const elTotalPoints = document.getElementById('histStatPoints');
 
-    const totalKm = playbackSummary ? Number(playbackSummary.totalDistanceKm || 0).toFixed(1) : '0.0';
+    const totalKm = playbackSummary ? parseFloat(playbackSummary.totalDistanceKm || 0) : 0;
     const maxSpd = playbackSummary ? Math.round(playbackSummary.maxSpeed || 0) : 0;
     const avgSpd = playbackSummary ? Math.round(playbackSummary.avgSpeed || 0) : 0;
     const totalFilled = fuelSummary ? Number(fuelSummary.totalFuelFilled || 0).toFixed(1) : '0.0';
     const totalDrained = fuelSummary ? Number(fuelSummary.totalFuelDrained || 0).toFixed(1) : '0.0';
 
-    if (elDistance) elDistance.innerText = `${totalKm} km`;
-    if (elMaxSpeed) elMaxSpeed.innerText = `${maxSpd} km/h`;
-    if (elAvgSpeed) elAvgSpeed.innerText = `${avgSpd} km/h`;
-    if (elMovingTime) elMovingTime.innerText = `${this.playbackPoints.length} Logs`;
-    if (elFuelRefills) elFuelRefills.innerText = `+${totalFilled} L`;
-    if (elFuelDrops) elFuelDrops.innerText = `-${totalDrained} L`;
+    // Calculate aggregate fuel used and mileage across trips or points
+    let totalFuelConsumed = 0;
+    if (this.trips.length > 0) {
+      totalFuelConsumed = this.trips.reduce((acc, t) => acc + (parseFloat(t.fuelConsumedLiters) || 0), 0);
+    } else if (totalKm > 0) {
+      const defaultEconomy = (this.activeVehicle?.category === 'BIKE') ? 45.0 : ((this.activeVehicle?.category === 'CAR') ? 15.0 : 4.5);
+      totalFuelConsumed = totalKm / defaultEconomy;
+    }
+
+    const avgMileage = (totalKm > 0.05 && totalFuelConsumed > 0.01) 
+      ? (totalKm / totalFuelConsumed).toFixed(2) 
+      : '0.0';
+
+    const fuelPerKm = (totalKm > 0.05 && totalFuelConsumed > 0.01) 
+      ? (totalFuelConsumed / totalKm).toFixed(3) 
+      : '0.000';
+
+    if (elDistance) elDistance.innerText = `${totalKm.toFixed(1)} km`;
+    if (elFuelUsed) elFuelUsed.innerText = `${totalFuelConsumed.toFixed(1)} L`;
+    if (elMileage) elMileage.innerText = `${avgMileage} km/L`;
+    if (elFuelPerKm) elFuelPerKm.innerText = `${fuelPerKm} L/km`;
+    if (elMaxSpeed) elMaxSpeed.innerText = `${maxSpd} / ${avgSpd} km/h`;
+    if (elFuelRefills) elFuelRefills.innerText = `+${totalFilled} / -${totalDrained} L`;
     if (elTotalPoints) elTotalPoints.innerText = `${this.playbackPoints.length}`;
   },
 
@@ -521,7 +544,120 @@ const HistoryStudio = {
   },
 
   // -------------------------------------------------------------
-  // TAB 2: FUEL REFUEL & THEFT LOGS
+  // TAB 2: TRIP-BY-TRIP FUEL & KM MILEAGE AUDIT
+  // -------------------------------------------------------------
+  renderTripsList() {
+    const container = document.getElementById('histTripsGrid');
+    if (!container) return;
+
+    if (this.trips.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-glass);">
+          <div style="font-size: 2.5rem; margin-bottom: 10px;">🛣️</div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #fff;">No Completed Trips Found</div>
+          <div style="font-size: 0.8rem; margin-top: 4px;">Trips are automatically logged when the vehicle starts and finishes moving.</div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = this.trips.map((t, idx) => {
+      const sDate = new Date(t.startTime);
+      const eDate = new Date(t.endTime);
+      const sTimeStr = sDate.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
+      const eTimeStr = eDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      const distKm = parseFloat(t.distanceKm || 0).toFixed(1);
+      const fuelLiters = parseFloat(t.fuelConsumedLiters || 0).toFixed(2);
+      const mileageKmPerL = parseFloat(t.mileageKmPerLiter || (distKm / Math.max(0.1, fuelLiters))).toFixed(2);
+      const fuelPerKm = parseFloat(t.fuelPerKm || (fuelLiters / Math.max(0.1, distKm))).toFixed(3);
+      const costTotal = (t.costTotal || (fuelLiters * 102.50)).toFixed(1);
+      const costKm = (t.costPerKm || (fuelPerKm * 102.50)).toFixed(2);
+
+      const durationHours = Math.floor((t.durationMinutes || 1) / 60);
+      const durationMins = (t.durationMinutes || 1) % 60;
+      const durationStr = durationHours > 0 ? `${durationHours}h ${durationMins}m` : `${durationMins}m`;
+
+      return `
+        <div class="hist-trip-card">
+          <!-- Trip Top Header -->
+          <div class="trip-card-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="trip-number-badge">Trip #${this.trips.length - idx}</span>
+              <span class="trip-duration-pill">⏱️ ${durationStr}</span>
+            </div>
+            <div class="trip-cost-badge">₹ ${costTotal}</div>
+          </div>
+
+          <!-- Trip Time Span -->
+          <div class="trip-time-row">
+            <div class="trip-point">
+              <span class="dot start"></span>
+              <span class="time">${sTimeStr}</span>
+            </div>
+            <div class="trip-arrow">➔</div>
+            <div class="trip-point">
+              <span class="dot end"></span>
+              <span class="time">${eTimeStr}</span>
+            </div>
+          </div>
+
+          <!-- 4-Grid Trip Metrics: Dist, Fuel, Mileage, Fuel/KM -->
+          <div class="trip-metrics-quad">
+            <div class="trip-metric-box">
+              <span class="trip-m-lbl">Distance</span>
+              <span class="trip-m-val">${distKm} km</span>
+            </div>
+            <div class="trip-metric-box">
+              <span class="trip-m-lbl">Fuel Used</span>
+              <span class="trip-m-val" style="color: var(--traxen-primary-light);">${fuelLiters} L</span>
+            </div>
+            <div class="trip-metric-box" style="border-color: rgba(22, 163, 74, 0.4); background: rgba(22, 163, 74, 0.08);">
+              <span class="trip-m-lbl" style="color: var(--status-moving);">Mileage</span>
+              <span class="trip-m-val" style="color: var(--status-moving); font-size: 1.15rem;">${mileageKmPerL} <span style="font-size: 0.7rem;">km/L</span></span>
+            </div>
+            <div class="trip-metric-box" style="border-color: rgba(255, 143, 0, 0.4); background: rgba(255, 143, 0, 0.08);">
+              <span class="trip-m-lbl" style="color: var(--traxen-amber-light);">💧 Fuel / KM</span>
+              <span class="trip-m-val" style="color: var(--traxen-amber-light); font-size: 1.15rem;">${fuelPerKm} <span style="font-size: 0.7rem;">L/km</span></span>
+            </div>
+          </div>
+
+          <!-- Sub Info: Cost/KM, Avg Speed, Idle Waste -->
+          <div class="trip-sub-stats">
+            <span>💰 Cost: <strong>₹ ${costKm} / km</strong></span>
+            <span>⚡ Avg: <strong>${t.avgSpeed || 0} km/h</strong> (Max: ${t.maxSpeed || 0})</span>
+            <span>🛑 Idle: <strong>${t.idleMinutes || 0}m</strong></span>
+          </div>
+
+          <!-- Actions -->
+          <div class="trip-actions-row">
+            <button class="btn-trip-play" onclick="HistoryStudio.playSpecificTrip('${t.startTime}', '${t.endTime}')">
+              <span>▶️</span> Play Route
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  playSpecificTrip(startTime, endTime) {
+    const fromTime = new Date(startTime).getTime();
+    const toTime = new Date(endTime).getTime();
+
+    // Find the starting point index in playbackPoints
+    const startIndex = this.playbackPoints.findIndex(p => new Date(p.timestamp).getTime() >= fromTime);
+    this.switchHistoryTab('playback');
+    
+    if (startIndex !== -1) {
+      this.seekTo(startIndex);
+      setTimeout(() => this.play(), 300);
+    } else {
+      this.seekTo(0);
+    }
+  },
+
+  // -------------------------------------------------------------
+  // TAB 3: FUEL REFUEL & THEFT LOGS
   // -------------------------------------------------------------
   renderFuelEventsList() {
     const container = document.getElementById('histFuelEventsList');
@@ -594,7 +730,7 @@ const HistoryStudio = {
   },
 
   // -------------------------------------------------------------
-  // TAB 3: RAW 90-DAY CAN TELEMETRY TABLE & CSV EXPORT
+  // TAB 4: RAW 90-DAY CAN TELEMETRY TABLE & CSV EXPORT
   // -------------------------------------------------------------
   renderCanDataTable() {
     const tbody = document.getElementById('histCanTableBody');

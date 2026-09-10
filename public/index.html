@@ -353,22 +353,30 @@
               </div>
             </div>
 
-            <div class="mileage-sub-grid">
+            <div class="mileage-sub-grid" style="grid-template-columns: repeat(3, 1fr);">
               <div class="mileage-stat-box">
                 <span class="mileage-stat-label">Trip Distance</span>
                 <span id="mileageTripDist" class="mileage-stat-val">0.0 km</span>
               </div>
               <div class="mileage-stat-box">
-                <span class="mileage-stat-label">Fuel Used (Trip)</span>
+                <span class="mileage-stat-label">Trip Fuel Used</span>
                 <span id="mileageTripFuel" class="mileage-stat-val">0.0 L</span>
+              </div>
+              <div class="mileage-stat-box" style="border-color: rgba(255, 109, 0, 0.4);">
+                <span class="mileage-stat-label" style="color: var(--traxen-primary-light);">💧 Fuel / KM</span>
+                <span id="mileageFuelPerKm" class="mileage-stat-val" style="color: var(--traxen-primary-light); font-weight: 900;">0.000 L/km</span>
               </div>
               <div class="mileage-stat-box">
                 <span class="mileage-stat-label">Cost / KM</span>
                 <span id="mileageCostPerKm" class="mileage-stat-val" style="color: var(--traxen-amber-light);">₹ 0.00</span>
               </div>
               <div class="mileage-stat-box">
+                <span class="mileage-stat-label">Idle Waste (L)</span>
+                <span id="mileageIdleWaste" class="mileage-stat-val" style="color: var(--status-idle);">0.0 L</span>
+              </div>
+              <div class="mileage-stat-box">
                 <span class="mileage-stat-label">Est. Range</span>
-                <span id="mileageRangeVal" class="mileage-stat-val" style="color: var(--traxen-primary-light);">-- km</span>
+                <span id="mileageRangeVal" class="mileage-stat-val" style="color: #38BDF8;">-- km</span>
               </div>
             </div>
           </div>
@@ -1234,6 +1242,9 @@
         <button class="hist-sub-tab active" data-tab="playback" onclick="HistoryStudio.switchHistoryTab('playback')">
           <span>🗺️</span> Interactive Route Playback
         </button>
+        <button class="hist-sub-tab" data-tab="tripsTable" onclick="HistoryStudio.switchHistoryTab('tripsTable')">
+          <span>🛣️</span> Trips & Fuel / KM Audit
+        </button>
         <button class="hist-sub-tab" data-tab="fuelEvents" onclick="HistoryStudio.switchHistoryTab('fuelEvents')">
           <span>⛽</span> Diesel Refuel & Theft Logs
         </button>
@@ -1243,26 +1254,30 @@
       </div>
 
       <!-- Summary Stats Banner -->
-      <div class="hist-summary-banner">
+      <div class="hist-summary-banner" style="grid-template-columns: repeat(7, 1fr);">
         <div class="hist-stat-item">
           <span class="hist-stat-label">Total Distance</span>
           <span id="histStatDistance" class="hist-stat-val highlight">0.0 km</span>
         </div>
         <div class="hist-stat-item">
-          <span class="hist-stat-label">Max Speed</span>
-          <span id="histStatMaxSpeed" class="hist-stat-val">0 km/h</span>
+          <span class="hist-stat-label">Fuel Used</span>
+          <span id="histStatFuelUsed" class="hist-stat-val" style="color: var(--traxen-primary-light);">0.0 L</span>
         </div>
         <div class="hist-stat-item">
-          <span class="hist-stat-label">Avg Speed</span>
-          <span id="histStatAvgSpeed" class="hist-stat-val">0 km/h</span>
+          <span class="hist-stat-label">Avg Mileage</span>
+          <span id="histStatMileage" class="hist-stat-val" style="color: var(--status-moving);">0.0 km/L</span>
+        </div>
+        <div class="hist-stat-item" style="border-color: rgba(255, 143, 0, 0.4);">
+          <span class="hist-stat-label" style="color: var(--traxen-amber-light);">💧 Fuel / KM</span>
+          <span id="histStatFuelPerKm" class="hist-stat-val" style="color: var(--traxen-amber-light); font-weight: 900;">0.000 L/km</span>
         </div>
         <div class="hist-stat-item">
-          <span class="hist-stat-label">Diesel Filled</span>
-          <span id="histStatFuelRefills" class="hist-stat-val" style="color: var(--status-moving);">+0.0 L</span>
+          <span class="hist-stat-label">Max / Avg Speed</span>
+          <span id="histStatMaxSpeed" class="hist-stat-val">0 / 0 km/h</span>
         </div>
         <div class="hist-stat-item">
-          <span class="hist-stat-label">Sudden Drops / Theft</span>
-          <span id="histStatFuelDrops" class="hist-stat-val" style="color: var(--status-theft);">-0.0 L</span>
+          <span class="hist-stat-label">Refill / Theft</span>
+          <span id="histStatFuelRefills" class="hist-stat-val" style="color: var(--status-moving);">+0.0 / -0.0 L</span>
         </div>
         <div class="hist-stat-item">
           <span class="hist-stat-label">Telemetry Points</span>
@@ -1375,7 +1390,27 @@
           </div>
         </div>
 
-        <!-- PANE 2: DIESEL REFUEL & THEFT LOGS -->
+        <!-- PANE 2: TRIP-BY-TRIP MILEAGE & FUEL / KM AUDIT -->
+        <div id="histTab_tripsTable" class="hist-tab-content">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">🛣️ Trip-by-Trip Fuel & KM Mileage Audit</h3>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0;">Discrete trip segmentation showing exact distance, fuel consumed, mileage (km/L), and fuel rate per km (L/km).</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="HistoryStudio.fetchData()">
+                <span>🔄</span> Refresh Trips
+              </button>
+            </div>
+          </div>
+
+          <!-- Trip Audit Cards Feed -->
+          <div id="histTripsGrid" class="hist-trips-grid">
+            <!-- Populated dynamically via HistoryStudio.renderTripsList() -->
+          </div>
+        </div>
+
+        <!-- PANE 3: DIESEL REFUEL & THEFT LOGS -->
         <div id="histTab_fuelEvents" class="hist-tab-content">
           <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
             <div>
