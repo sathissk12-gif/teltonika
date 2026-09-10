@@ -55,9 +55,9 @@ function updateGauges(telemetry, tankCapacity = 480) {
   setCanVal('canFuelPct', `${fuelPct} %`);
   setCanVal('canDirectLiters', (telemetry.fuelLevelLiters !== undefined && telemetry.fuelLevelLiters !== null) ? `${parseFloat(telemetry.fuelLevelLiters).toFixed(1)} L` : '-- L');
   setCanVal('canFuelRate', telemetry.fuelRate ? `${parseFloat(telemetry.fuelRate).toFixed(1)} L/h` : '0.0 L/h');
-  setCanVal('canTotalFuel', telemetry.totalFuelConsumed ? `${parseFloat(telemetry.totalFuelConsumed).toFixed(1)} L` : (telemetry.totalMileageCan ? `${parseFloat(telemetry.totalMileageCan).toFixed(1)} km` : '0.0 L'));
+  setCanVal('canTotalMileage', (telemetry.totalMileageCan !== undefined && telemetry.totalMileageCan !== null) ? `${parseFloat(telemetry.totalMileageCan).toLocaleString()} km` : (telemetry.odometer ? `${parseFloat(telemetry.odometer).toLocaleString()} km` : '-- km'));
+  setCanVal('canVehicleRange', telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : '-- km');
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');
-  setCanVal('canCng', telemetry.totalCngUsed ? `${telemetry.totalCngUsed} kg` : '-- kg');
   setCanVal('canServiceDist', telemetry.nextServiceDistance ? `${telemetry.nextServiceDistance.toLocaleString()} km` : '-- km');
 
   // 4. Electrical, Body & Comfort CAN Cluster
