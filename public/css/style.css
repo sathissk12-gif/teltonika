@@ -2009,3 +2009,697 @@ body {
   }
 }
 
+/* ==========================================================================
+   TRAXEN 90-DAY CAN HISTORY & ROUTE PLAYBACK SUITE STYLES
+   ========================================================================== */
+.history-modal-container {
+  max-width: 1240px;
+  width: 96vw;
+  height: 92vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-traxen);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(255, 109, 0, 0.15);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.hist-header {
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(230, 81, 0, 0.25) 0%, rgba(14, 21, 36, 0.95) 100%);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.hist-vehicle-badge {
+  background: rgba(255, 109, 0, 0.12);
+  border: 1px solid var(--border-traxen);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hist-imei-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--traxen-amber);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+}
+
+.hist-vehicle-select {
+  background: rgba(14, 21, 36, 0.9);
+  color: #fff;
+  border: 1px solid var(--border-traxen);
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* History Toolbar & Date Presets */
+.hist-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.hist-presets-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.hist-preset-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.hist-preset-btn:hover {
+  background: rgba(255, 109, 0, 0.15);
+  color: #fff;
+}
+
+.hist-preset-btn.active {
+  background: linear-gradient(135deg, var(--traxen-primary), var(--traxen-amber));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(255, 109, 0, 0.4);
+}
+
+.hist-custom-range-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hist-input-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 2px 8px;
+}
+
+.hist-input-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+
+.hist-datetime-input {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  outline: none;
+  padding: 4px 0;
+  color-scheme: dark;
+}
+
+.hist-load-btn {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  border-radius: var(--radius-md);
+}
+
+/* History Sub Tabs */
+.hist-nav-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 20px;
+  background: rgba(14, 21, 36, 0.6);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.hist-sub-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.hist-sub-tab:hover {
+  color: #fff;
+}
+
+.hist-sub-tab.active {
+  color: var(--traxen-primary-light);
+  border-bottom-color: var(--traxen-primary-light);
+}
+
+/* Summary Banner Strip */
+.hist-summary-banner {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.hist-stat-item {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-glass);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+}
+
+.hist-stat-label {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hist-stat-val {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #fff;
+  margin-top: 2px;
+}
+
+.hist-stat-val.highlight {
+  color: var(--traxen-amber-light);
+}
+
+/* Modal Body & Panes */
+.hist-modal-body {
+  flex: 1;
+  padding: 14px 20px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.hist-tab-content {
+  display: none;
+  height: 100%;
+}
+
+.hist-tab-content.active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Playback Layout */
+.hist-playback-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+  min-height: 440px;
+}
+
+.hist-map-wrap {
+  flex: 1;
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-glass);
+  overflow: hidden;
+  min-height: 380px;
+  background: #0b111e;
+}
+
+/* Floating Telemetry HUD over Map */
+.hist-floating-hud {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+  background: rgba(14, 21, 36, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-traxen);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.hud-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hud-item:last-child {
+  border-right: none;
+}
+
+.hud-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hud-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: #fff;
+}
+
+.hud-val.highlight {
+  color: var(--status-moving);
+}
+
+.hud-val.time {
+  color: var(--traxen-amber-light);
+  font-size: 0.8rem;
+}
+
+/* Loading & Empty Overlays */
+.hist-empty-overlay,
+.hist-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 17, 30, 0.88);
+  backdrop-filter: blur(6px);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.hist-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 109, 0, 0.2);
+  border-top-color: var(--traxen-primary-light);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Playback Control Bar */
+.hist-controls-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hist-scrubber-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hist-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  cursor: pointer;
+}
+
+.hist-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--traxen-primary-light);
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 109, 0, 0.8);
+  transition: transform 0.1s ease;
+}
+
+.hist-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.hist-progress-pill {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--traxen-amber-light);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+  white-space: nowrap;
+}
+
+.hist-btn-actions-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-hist-play {
+  background: linear-gradient(135deg, #16A34A, #22C55E);
+  border: none;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.84rem;
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-hist-play:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.5);
+}
+
+.btn-hist-step {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-hist-step:hover {
+  background: rgba(255, 109, 0, 0.2);
+  border-color: var(--traxen-primary-light);
+}
+
+.hist-speed-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px 6px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-glass);
+}
+
+.hist-speed-lbl {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-right: 4px;
+  padding-left: 4px;
+}
+
+.hist-speed-pill {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hist-speed-pill.active {
+  background: var(--traxen-primary-light);
+  color: #fff;
+}
+
+.hist-autocenter-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.hist-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Map Animated Marker & Pins */
+.hist-marker-wrapper {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s linear;
+}
+
+.hist-marker-img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.8));
+}
+
+.hist-marker-pulse {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--traxen-primary-light);
+  animation: markerGlowPulse 1.5s infinite;
+  pointer-events: none;
+}
+
+@keyframes markerGlowPulse {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.hist-map-pin {
+  background: rgba(14, 21, 36, 0.95);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-full);
+  padding: 2px 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.8);
+}
+
+.hist-map-pin .pin-inner {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hist-event-pin {
+  background: rgba(14, 21, 36, 0.95);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+}
+
+.hist-event-pin.refuel {
+  border: 2px solid var(--status-moving);
+}
+
+.hist-event-pin.theft {
+  border: 2px solid var(--status-theft);
+  animation: theftBlink 1s infinite alternate;
+}
+
+@keyframes theftBlink {
+  from { box-shadow: 0 0 5px var(--status-theft); }
+  to { box-shadow: 0 0 16px var(--status-theft); }
+}
+
+/* Fuel Events Card Grid */
+.hist-fuel-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.hist-fuel-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-glass);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.hist-fuel-card.refuel {
+  border-color: rgba(22, 163, 74, 0.35);
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.06), var(--bg-card));
+}
+
+.hist-fuel-card.theft {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.08), var(--bg-card));
+}
+
+.hist-fuel-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.hist-fuel-badge.refuel {
+  color: var(--status-moving);
+}
+
+.hist-fuel-badge.theft {
+  color: var(--status-theft);
+}
+
+.hist-fuel-amount {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.hist-fuel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+}
+
+.hist-fuel-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.hist-fuel-lbl {
+  color: var(--text-muted);
+}
+
+.hist-fuel-val {
+  color: #fff;
+  font-weight: 600;
+}
+
+.hist-fuel-val.highlight {
+  color: var(--traxen-amber-light);
+  font-family: var(--font-mono);
+}
+
+.hist-fuel-val.mono {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.btn-hist-locate {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-glass);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.btn-hist-locate:hover {
+  background: rgba(255, 109, 0, 0.2);
+  border-color: var(--traxen-primary-light);
+}
+
+/* CAN History Table Badges */
+.table-speed-pill {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--status-moving);
+}
+
+.table-ign-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.table-ign-badge.on {
+  background: rgba(22, 163, 74, 0.2);
+  color: var(--status-moving);
+  border: 1px solid rgba(22, 163, 74, 0.4);
+}
+
+.table-ign-badge.off {
+  background: rgba(100, 116, 139, 0.2);
+  color: var(--text-muted);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+@media (max-width: 900px) {
+  .hist-summary-banner {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .hist-floating-hud {
+    display: none;
+  }
+}
+

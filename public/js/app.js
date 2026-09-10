@@ -320,10 +320,13 @@ function renderVehicleCards() {
         <!-- Action Buttons -->
         <div class="card-actions-row">
           <button class="btn-card-action primary" onclick="event.stopPropagation(); App.trackVehicleOnMap('${dev.imei}')">
-            <span>📍</span> Track Live
+            <span>📍</span> Live
+          </button>
+          <button class="btn-card-action" style="color: var(--traxen-amber-light);" onclick="event.stopPropagation(); HistoryStudio.openHistoryModal('${dev.imei}')">
+            <span>📅</span> History
           </button>
           <button class="btn-card-action" onclick="event.stopPropagation(); App.openVehicleCan('${dev.imei}')">
-            <span>📊</span> CAN Bus
+            <span>📊</span> CAN
           </button>
           <button class="btn-card-action" style="color: var(--status-theft);" onclick="event.stopPropagation(); App.sendRemoteCommand('setdigout 1 0', '${dev.imei}')">
             <span>🛑</span> Lock

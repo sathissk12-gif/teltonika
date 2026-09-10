@@ -49,6 +49,9 @@
         <button class="btn-header-admin" onclick="AdminApp.openAdminModal('vehicles')">
           <span>⚙️</span> Admin Center
         </button>
+        <button class="btn-header-admin" style="background: rgba(255, 143, 0, 0.18); border-color: var(--traxen-amber); color: #fff;" onclick="HistoryStudio.openHistoryModal(currentDeviceImei)">
+          <span>📅</span> History & Playback
+        </button>
         <button class="btn-header-add" onclick="AdminApp.openCreateVehicleModal()">
           <span>➕</span> Add Vehicle
         </button>
@@ -169,6 +172,15 @@
               <div class="card-metric-label">Battery</div>
               <div id="drawerBattery" class="card-metric-val">0.0 V</div>
             </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="btn-card-action primary" style="flex: 1;" onclick="HistoryStudio.openHistoryModal(currentDeviceImei)">
+              <span>📅</span> Route Playback & History
+            </button>
+            <button class="btn-card-action" style="flex: 1;" onclick="App.openVehicleCan(currentDeviceImei)">
+              <span>📊</span> CAN Bus
+            </button>
           </div>
         </div>
       </div>
@@ -1163,6 +1175,263 @@
     </div>
   </div>
 
+  <!-- =========================================================================
+       TRAXEN 90-DAY CAN HISTORY, ROUTE PLAYBACK & FUEL EVENTS MODAL
+       ========================================================================= -->
+  <div id="historyModal" class="admin-modal-overlay">
+    <div class="admin-modal-container history-modal-container">
+      
+      <!-- Modal Header with Vehicle Info & Vehicle Switcher -->
+      <div class="admin-modal-header hist-header">
+        <div class="admin-header-title-box">
+          <div class="hist-vehicle-badge">
+            <img id="histModalIcon" src="assets/icons/vehicle/sideview/moving/OPEN TRUCK.png" style="width: 36px; height: 26px; object-fit: contain;">
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <h2 id="histModalPlate" style="font-size: 1.25rem; font-weight: 900; color: #fff; margin: 0;">TN-30-AZ-1234</h2>
+              <span id="histModalImei" class="hist-imei-pill">IMEI: 353742372466615</span>
+            </div>
+            <p id="histModalModel" style="margin: 2px 0 0; font-size: 0.78rem; color: var(--traxen-amber-light); font-weight: 600;">90-Day CAN History & Diesel Monitoring Engine</p>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <select id="histVehicleSelect" class="form-control hist-vehicle-select" onchange="HistoryStudio.onVehicleSelectChange(this.value)">
+            <!-- Populated dynamically -->
+          </select>
+          <button class="admin-modal-close" onclick="HistoryStudio.closeHistoryModal()">✕</button>
+        </div>
+      </div>
+
+      <!-- Date Presets & Custom Range Toolbar -->
+      <div class="hist-toolbar">
+        <div class="hist-presets-strip">
+          <button class="hist-preset-btn active" data-preset="today" onclick="HistoryStudio.setDefaultDates('today'); HistoryStudio.fetchData()">Today</button>
+          <button class="hist-preset-btn" data-preset="yesterday" onclick="HistoryStudio.setDefaultDates('yesterday'); HistoryStudio.fetchData()">Yesterday</button>
+          <button class="hist-preset-btn" data-preset="7days" onclick="HistoryStudio.setDefaultDates('7days'); HistoryStudio.fetchData()">Last 7 Days</button>
+          <button class="hist-preset-btn" data-preset="30days" onclick="HistoryStudio.setDefaultDates('30days'); HistoryStudio.fetchData()">Last 30 Days</button>
+          <button class="hist-preset-btn" data-preset="90days" onclick="HistoryStudio.setDefaultDates('90days'); HistoryStudio.fetchData()">3 Months (90D)</button>
+        </div>
+
+        <div class="hist-custom-range-group">
+          <div class="hist-input-wrap">
+            <span class="hist-input-lbl">From</span>
+            <input type="datetime-local" id="histFromDate" class="hist-datetime-input">
+          </div>
+          <div class="hist-input-wrap">
+            <span class="hist-input-lbl">To</span>
+            <input type="datetime-local" id="histToDate" class="hist-datetime-input">
+          </div>
+          <button class="btn-primary hist-load-btn" onclick="HistoryStudio.fetchData()">
+            <span>🔍</span> Load History
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-Tab Navigation Strip -->
+      <div class="hist-nav-tabs">
+        <button class="hist-sub-tab active" data-tab="playback" onclick="HistoryStudio.switchHistoryTab('playback')">
+          <span>🗺️</span> Interactive Route Playback
+        </button>
+        <button class="hist-sub-tab" data-tab="fuelEvents" onclick="HistoryStudio.switchHistoryTab('fuelEvents')">
+          <span>⛽</span> Diesel Refuel & Theft Logs
+        </button>
+        <button class="hist-sub-tab" data-tab="canTable" onclick="HistoryStudio.switchHistoryTab('canTable')">
+          <span>📊</span> 90-Day CAN Telemetry Grid
+        </button>
+      </div>
+
+      <!-- Summary Stats Banner -->
+      <div class="hist-summary-banner">
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Total Distance</span>
+          <span id="histStatDistance" class="hist-stat-val highlight">0.0 km</span>
+        </div>
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Max Speed</span>
+          <span id="histStatMaxSpeed" class="hist-stat-val">0 km/h</span>
+        </div>
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Avg Speed</span>
+          <span id="histStatAvgSpeed" class="hist-stat-val">0 km/h</span>
+        </div>
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Diesel Filled</span>
+          <span id="histStatFuelRefills" class="hist-stat-val" style="color: var(--status-moving);">+0.0 L</span>
+        </div>
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Sudden Drops / Theft</span>
+          <span id="histStatFuelDrops" class="hist-stat-val" style="color: var(--status-theft);">-0.0 L</span>
+        </div>
+        <div class="hist-stat-item">
+          <span class="hist-stat-label">Telemetry Points</span>
+          <span id="histStatPoints" class="hist-stat-val" style="color: var(--text-secondary);">0</span>
+        </div>
+      </div>
+
+      <!-- Modal Body Content Panes -->
+      <div class="admin-modal-body hist-modal-body">
+        
+        <!-- PANE 1: INTERACTIVE ROUTE PLAYBACK -->
+        <div id="histTab_playback" class="hist-tab-content active">
+          <div class="hist-playback-layout">
+            
+            <!-- Map Container with Floating Telemetry HUD -->
+            <div class="hist-map-wrap">
+              <div id="histPlaybackMap" style="width: 100%; height: 100%;"></div>
+
+              <!-- Floating Live Playback Telemetry HUD -->
+              <div class="hist-floating-hud">
+                <div class="hud-item">
+                  <span class="hud-label">Speed</span>
+                  <span id="hudSpeed" class="hud-val highlight">0 km/h</span>
+                </div>
+                <div class="hud-item">
+                  <span class="hud-label">Gear</span>
+                  <span id="hudGear" class="hud-val" style="color: var(--traxen-amber-light); font-weight: 900;">N</span>
+                </div>
+                <div class="hud-item">
+                  <span class="hud-label">RPM</span>
+                  <span id="hudRpm" class="hud-val">0</span>
+                </div>
+                <div class="hud-item">
+                  <span class="hud-label">Fuel (Calib)</span>
+                  <span id="hudFuel" class="hud-val" style="color: var(--traxen-primary-light);">0.0 L</span>
+                </div>
+                <div class="hud-item">
+                  <span class="hud-label">Ignition</span>
+                  <span id="hudIgnition" class="hud-val">OFF</span>
+                </div>
+                <div class="hud-item time-item">
+                  <span class="hud-label">GPS RTC Timestamp</span>
+                  <span id="hudTime" class="hud-val time">--:--:--</span>
+                </div>
+              </div>
+
+              <!-- Empty Route Overlay -->
+              <div id="histPlaybackEmpty" class="hist-empty-overlay" style="display: none;">
+                <div style="font-size: 2.2rem; margin-bottom: 8px;">🛰️</div>
+                <div style="font-weight: 800; font-size: 1.05rem; color: #fff;">No Route Playback Coordinates Found</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Select a different date preset (e.g. Last 7 Days) above.</div>
+              </div>
+
+              <!-- Loading Overlay -->
+              <div id="histLoadingOverlay" class="hist-loading-overlay" style="display: none;">
+                <div class="hist-spinner"></div>
+                <div style="font-weight: 700; color: var(--traxen-amber-light); font-size: 0.9rem; margin-top: 10px;">
+                  Retrieving 90-Day CAN Telemetry & Fuel Analysis...
+                </div>
+              </div>
+            </div>
+
+            <!-- Playback Control Center Bar -->
+            <div id="histPlaybackControls" class="hist-controls-bar">
+              
+              <!-- Scrub Slider Row -->
+              <div class="hist-scrubber-row">
+                <input type="range" id="histScrubber" class="hist-slider" min="0" max="100" value="0" oninput="HistoryStudio.onScrubberInput(this.value)">
+                <span id="hudProgressPct" class="hist-progress-pill">0% (0/0)</span>
+              </div>
+
+              <!-- Playback Buttons & Speed Control -->
+              <div class="hist-btn-actions-row">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="btnHistPlay" class="btn-hist-play" onclick="HistoryStudio.togglePlay()">
+                    <span>▶️</span> Play
+                  </button>
+                  <button class="btn-hist-step" onclick="HistoryStudio.pause(); HistoryStudio.seekTo(0)" title="Reset to Start">
+                    <span>⏮️</span>
+                  </button>
+                  <button class="btn-hist-step" onclick="HistoryStudio.pause(); HistoryStudio.seekTo(Math.max(0, HistoryStudio.playbackIndex - 10))" title="Rewind 10 steps">
+                    <span>⏪</span>
+                  </button>
+                  <button class="btn-hist-step" onclick="HistoryStudio.pause(); HistoryStudio.seekTo(Math.min(HistoryStudio.playbackPoints.length - 1, HistoryStudio.playbackIndex + 10))" title="Forward 10 steps">
+                    <span>⏩</span>
+                  </button>
+                </div>
+
+                <!-- Speed Multiplier Pills -->
+                <div class="hist-speed-group">
+                  <span class="hist-speed-lbl">Speed:</span>
+                  <button class="hist-speed-pill active" data-speed="1" onclick="HistoryStudio.setPlaySpeed(1)">1x</button>
+                  <button class="hist-speed-pill" data-speed="2" onclick="HistoryStudio.setPlaySpeed(2)">2x</button>
+                  <button class="hist-speed-pill" data-speed="5" onclick="HistoryStudio.setPlaySpeed(5)">5x</button>
+                  <button class="hist-speed-pill" data-speed="10" onclick="HistoryStudio.setPlaySpeed(10)">10x</button>
+                  <button class="hist-speed-pill" data-speed="20" onclick="HistoryStudio.setPlaySpeed(20)">20x</button>
+                </div>
+
+                <!-- Auto-Center Checkbox -->
+                <div class="hist-autocenter-wrap">
+                  <label class="hist-checkbox-label">
+                    <input type="checkbox" id="histAutoCenterCheck" checked>
+                    <span>Auto-Follow Vehicle</span>
+                  </label>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+        <!-- PANE 2: DIESEL REFUEL & THEFT LOGS -->
+        <div id="histTab_fuelEvents" class="hist-tab-content">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">⛽ Diesel Refuels & Sudden Drop (Theft) History</h3>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0;">Sliding window sensor algorithm analyzing fuel jumps (>5L) and ignition-off sudden drops (>4L).</p>
+            </div>
+            <button class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="HistoryStudio.fetchData()">
+              <span>🔄</span> Refresh Logs
+            </button>
+          </div>
+
+          <div id="histFuelEventsList" class="hist-fuel-events-grid">
+            <!-- Populated dynamically via HistoryStudio.renderFuelEventsList() -->
+          </div>
+        </div>
+
+        <!-- PANE 3: 90-DAY CAN TELEMETRY TABLE -->
+        <div id="histTab_canTable" class="hist-tab-content">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h3 style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 0;">📊 90-Day Raw CAN Telemetry Time-Series</h3>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0;">Teltonika Codec 8 Extended CAN Bus parameters stored in SQLite WAL database.</p>
+            </div>
+            <button class="btn-primary" style="font-size: 0.8rem; padding: 6px 14px;" onclick="HistoryStudio.exportToCsv()">
+              <span>📥</span> Export CSV File
+            </button>
+          </div>
+
+          <div class="admin-table-responsive" style="max-height: 480px; overflow-y: auto;">
+            <table class="admin-data-table hist-can-table">
+              <thead>
+                <tr>
+                  <th>Timestamp (IST)</th>
+                  <th>Speed</th>
+                  <th>RPM</th>
+                  <th>Gear</th>
+                  <th>Fuel (Calib)</th>
+                  <th>Fuel %</th>
+                  <th>Coolant</th>
+                  <th>Battery</th>
+                  <th>Ignition</th>
+                  <th>CAN ODO</th>
+                </tr>
+              </thead>
+              <tbody id="histCanTableBody">
+                <!-- Populated dynamically via HistoryStudio.renderCanDataTable() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- Google Maps JavaScript API with Geometry & Places Libraries -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAiYpItT9edN1wOWsT78ogECLCa6-g3zRU&libraries=geometry,places"></script>
 
@@ -1175,6 +1444,7 @@
   <script src="js/calibration.js"></script>
   <script src="js/simulator.js"></script>
   <script src="js/admin.js"></script>
+  <script src="js/history.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
