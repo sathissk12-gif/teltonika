@@ -55,6 +55,25 @@ class TeltonikaTcpServer {
         console.error(`[TCP Server] Error on port ${this.port}:`, err.message);
         reject(err);
       });
+
+      // Periodic Device Liveness & Heartbeat Watchdog (Every 10 seconds)
+      this.statusWatchdog = setInterval(() => {
+        const devices = Database.getAllDevices();
+        devices.forEach(dev => {
+          const isOnline = this.isDeviceOnline(dev.imei);
+          if (!isOnline && dev.status === 'ONLINE') {
+            Database.upsertDevice({ imei: dev.imei, status: 'OFFLINE' });
+            if (this.wsBroadcaster) {
+              this.wsBroadcaster.broadcast('device_status', { imei: dev.imei, status: 'OFFLINE' });
+            }
+          } else if (isOnline && dev.status !== 'ONLINE') {
+            Database.upsertDevice({ imei: dev.imei, status: 'ONLINE' });
+            if (this.wsBroadcaster) {
+              this.wsBroadcaster.broadcast('device_status', { imei: dev.imei, status: 'ONLINE' });
+            }
+          }
+        });
+      }, 10000);
     });
   }
 
@@ -258,15 +277,19 @@ class TeltonikaTcpServer {
       if (authenticatedImei) {
         console.log(`[TCP Server] 🔌 Connection closed for IMEI: ${authenticatedImei}`);
         this.activeSockets.delete(authenticatedImei);
-        Database.upsertDevice({
-          imei: authenticatedImei,
-          status: 'OFFLINE'
-        });
-        if (this.wsBroadcaster) {
-          this.wsBroadcaster.broadcast('device_status', {
+        // Retain ONLINE status if device reports within periodic threshold
+        const isOnline = this.isDeviceOnline(authenticatedImei);
+        if (!isOnline) {
+          Database.upsertDevice({
             imei: authenticatedImei,
             status: 'OFFLINE'
           });
+          if (this.wsBroadcaster) {
+            this.wsBroadcaster.broadcast('device_status', {
+              imei: authenticatedImei,
+              status: 'OFFLINE'
+            });
+          }
         }
       }
     });
@@ -302,7 +325,15 @@ class TeltonikaTcpServer {
 
   isDeviceOnline(imei) {
     const socket = this.activeSockets.get(imei);
-    return Boolean(socket && !socket.destroyed);
+    if (socket && !socket.destroyed) return true;
+
+    // Heartbeat Activity Threshold (120 seconds): Periodic GPRS reporting trackers stay ONLINE between send cycles
+    const dev = Database.getDevice(imei);
+    if (dev && dev.lastUpdated) {
+      const elapsed = Date.now() - new Date(dev.lastUpdated).getTime();
+      return elapsed < 120000;
+    }
+    return false;
   }
 }
 
