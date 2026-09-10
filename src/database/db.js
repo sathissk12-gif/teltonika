@@ -91,7 +91,7 @@ const Database = {
     return updated;
   },
 
-  saveTelemetry(imei, record, calculatedLiters) {
+  saveTelemetry(imei, record, calculatedLiters, mileageMetrics = {}) {
     let device = db.devices.get(imei);
     if (!device) {
       // Auto-register unknown device
@@ -112,6 +112,7 @@ const Database = {
     const rawTel = record.telemetry || {};
     const telemetry = {
       ...rawTel,
+      ...mileageMetrics,
       lat: record.gps.latitude,
       lng: record.gps.longitude,
       altitude: record.gps.altitude,
@@ -127,6 +128,11 @@ const Database = {
       fuelPercentage: rawTel.fuelLevelPercentage !== undefined ? rawTel.fuelLevelPercentage : (rawTel.fuelLevel !== undefined ? rawTel.fuelLevel : 0),
       fuelLiters: calculatedLiters,
       fuelLevelLiters: rawTel.fuelLevelLiters !== undefined ? rawTel.fuelLevelLiters : null,
+      instantMileage: mileageMetrics.instantMileageKmPerLiter || 0,
+      avgMileage: mileageMetrics.avgMileageKmPerLiter || 0,
+      tripDistance: mileageMetrics.tripDistanceKm || 0,
+      tripFuel: mileageMetrics.tripFuelConsumedLiters || 0,
+      costPerKm: mileageMetrics.costPerKm || 0,
       engineRpm: rawTel.engineRpm || 0,
       engineLoad: rawTel.engineLoad || 0,
       engineHours: rawTel.engineHours || 0,
@@ -137,7 +143,7 @@ const Database = {
       fuelRate: rawTel.fuelRate || 0,
       totalFuelConsumed: rawTel.totalFuelConsumed || 0,
       totalMileageCan: rawTel.totalMileageCan !== undefined ? rawTel.totalMileageCan : null,
-      vehicleRange: rawTel.vehicleRange !== undefined ? rawTel.vehicleRange : null,
+      vehicleRange: rawTel.vehicleRange !== undefined ? rawTel.vehicleRange : (mileageMetrics.estimatedRangeKm || null),
       lvcanAdapterId: rawTel.lvcanAdapterId || null,
       cngRate: rawTel.cngRate || 0,
       totalCngUsed: rawTel.totalCngUsed || 0,

@@ -27,6 +27,10 @@
       </div>
 
       <div class="header-actions">
+        <div id="wsConnectionBadge" class="ws-status-badge online" title="Real-time WebSocket Live Stream Active">
+          <span class="ws-pulse-dot"></span>
+          <span id="wsStatusText">WS Live ⚡</span>
+        </div>
         <button class="btn-header-add" onclick="App.openAddDeviceModal()">
           <span>➕</span> Add Vehicle
         </button>
@@ -229,7 +233,50 @@
           </div>
         </div>
 
-        <!-- 3. Body, Electrical & Comfort CAN -->
+        <!-- 3. Real-Time Mileage & Fuel Economy Hub -->
+        <div class="can-cluster-card" style="border-color: rgba(230, 81, 0, 0.4); background: linear-gradient(180deg, rgba(230, 81, 0, 0.08), var(--bg-card));">
+          <div class="cluster-title" style="color: var(--traxen-primary-light);">
+            <span>📈</span> Real-Time Mileage & Economy Hub
+          </div>
+          <div class="cluster-items-list">
+            <div class="mileage-hero-display">
+              <div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Instantaneous Mileage</div>
+                <div style="display: flex; align-items: baseline; gap: 6px;">
+                  <span id="mileageInstantVal" class="mileage-hero-val">--</span>
+                  <span class="mileage-hero-unit">km/L</span>
+                </div>
+              </div>
+              <div style="margin-left: auto; text-align: right;">
+                <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Trip Economy</div>
+                <div style="font-size: 1.25rem; font-weight: 800; font-family: var(--font-mono); color: var(--status-moving);">
+                  <span id="mileageAvgVal">--</span> <span style="font-size: 0.75rem; color: var(--text-secondary);">km/L</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mileage-sub-grid">
+              <div class="mileage-stat-box">
+                <span class="mileage-stat-label">Trip Distance</span>
+                <span id="mileageTripDist" class="mileage-stat-val">0.0 km</span>
+              </div>
+              <div class="mileage-stat-box">
+                <span class="mileage-stat-label">Fuel Used (Trip)</span>
+                <span id="mileageTripFuel" class="mileage-stat-val">0.0 L</span>
+              </div>
+              <div class="mileage-stat-box">
+                <span class="mileage-stat-label">Cost / KM</span>
+                <span id="mileageCostPerKm" class="mileage-stat-val" style="color: var(--traxen-amber-light);">₹ 0.00</span>
+              </div>
+              <div class="mileage-stat-box">
+                <span class="mileage-stat-label">Est. Range</span>
+                <span id="mileageRangeVal" class="mileage-stat-val" style="color: var(--traxen-primary-light);">-- km</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Body, Electrical & Comfort CAN -->
         <div class="can-cluster-card">
           <div class="cluster-title">
             <span>⚡</span> Electrical & Body Controls

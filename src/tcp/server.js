@@ -12,6 +12,7 @@ const { parseCodec8Extended } = require('../parser/codec8ext');
 const { decodeCodec12Response, encodeCodec12Command } = require('../parser/codec12');
 const { calculateLiters } = require('../engine/calibration');
 const FuelTheftDetector = require('../engine/theftDetector');
+const MileageEngine = require('../engine/mileageEngine');
 const Database = require('../database/db');
 
 class TeltonikaTcpServer {
@@ -23,6 +24,7 @@ class TeltonikaTcpServer {
       theftWindowMinutes: config.defaultTheftWindowMinutes,
       refuelThresholdLiters: config.defaultRefuelThresholdLiters
     });
+    this.mileageEngine = new MileageEngine();
     this.wsBroadcaster = null; // Injected WebSocket broadcaster
     this.server = null;
   }
@@ -162,8 +164,11 @@ class TeltonikaTcpServer {
               
               const calculatedLiters = calculateLiters(rawFuel, calibrationPoints);
 
-              // 2. Save Telemetry into Database
-              const savedItem = Database.saveTelemetry(authenticatedImei, record, calculatedLiters);
+              // 2. Compute Mileage & Fuel Economy Metrics
+              const mileageMetrics = this.mileageEngine.process(authenticatedImei, record.telemetry, device || {});
+
+              // 3. Save Telemetry into Database
+              const savedItem = Database.saveTelemetry(authenticatedImei, record, calculatedLiters, mileageMetrics);
 
               // 3. Fuel Theft / Refuel Analysis
               const alert = this.theftDetector.process(authenticatedImei, savedItem);

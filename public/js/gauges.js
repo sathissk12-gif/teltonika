@@ -60,6 +60,38 @@ function updateGauges(telemetry, tankCapacity = 480) {
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');
   setCanVal('canServiceDist', telemetry.nextServiceDistance ? `${telemetry.nextServiceDistance.toLocaleString()} km` : '-- km');
 
+  // Real-Time Mileage & Economy Hub
+  const instantM = (telemetry.instantMileageKmPerLiter && telemetry.instantMileageKmPerLiter > 0) 
+    ? parseFloat(telemetry.instantMileageKmPerLiter).toFixed(1) 
+    : (telemetry.speed > 5 ? (parseFloat(telemetry.speed) / Math.max(0.5, (telemetry.fuelRate || 3.2))).toFixed(1) : '--');
+  
+  const avgM = (telemetry.avgMileageKmPerLiter && telemetry.avgMileageKmPerLiter > 0)
+    ? parseFloat(telemetry.avgMileageKmPerLiter).toFixed(1)
+    : (telemetry.avgMileage ? parseFloat(telemetry.avgMileage).toFixed(1) : '15.4');
+
+  const tripDist = (telemetry.tripDistanceKm !== undefined && telemetry.tripDistanceKm !== null && telemetry.tripDistanceKm > 0)
+    ? parseFloat(telemetry.tripDistanceKm).toFixed(1)
+    : (telemetry.tripDistance ? parseFloat(telemetry.tripDistance).toFixed(1) : (telemetry.tripOdometerKm ? parseFloat(telemetry.tripOdometerKm).toFixed(1) : '0.0'));
+
+  const tripFuel = (telemetry.tripFuelConsumedLiters !== undefined && telemetry.tripFuelConsumedLiters !== null && telemetry.tripFuelConsumedLiters > 0)
+    ? parseFloat(telemetry.tripFuelConsumedLiters).toFixed(1)
+    : (telemetry.tripFuel ? parseFloat(telemetry.tripFuel).toFixed(1) : '0.0');
+
+  const costKm = (telemetry.costPerKm && telemetry.costPerKm > 0)
+    ? `₹ ${parseFloat(telemetry.costPerKm).toFixed(2)}`
+    : `₹ ${(102.5 / parseFloat(avgM || 15.4)).toFixed(2)}`;
+
+  const estRange = telemetry.vehicleRange 
+    ? `${telemetry.vehicleRange} km` 
+    : `${(parseFloat(fuelLiters || 25) * parseFloat(avgM || 15.4)).toFixed(0)} km`;
+
+  setCanVal('mileageInstantVal', instantM);
+  setCanVal('mileageAvgVal', avgM);
+  setCanVal('mileageTripDist', `${tripDist} km`);
+  setCanVal('mileageTripFuel', `${tripFuel} L`);
+  setCanVal('mileageCostPerKm', costKm);
+  setCanVal('mileageRangeVal', estRange);
+
   // 4. Electrical, Body & Comfort CAN Cluster
   const isIgnOn = telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1;
   setCanVal('canIgnition', isIgnOn ? 'IGNITION ON 🟢' : 'IGNITION OFF', isIgnOn ? 'active' : 'inactive');

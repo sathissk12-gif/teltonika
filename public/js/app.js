@@ -408,12 +408,38 @@ function saveNewDevice() {
   .catch(err => alert('Network error: ' + err.message));
 }
 
-// WebSocket Listener
+// WebSocket Listener & Real-Time Sync
+let wsPingInterval = null;
+
+function updateWsBadge(status, text) {
+  const badge = document.getElementById('wsConnectionBadge');
+  const txt = document.getElementById('wsStatusText');
+  if (!badge) return;
+
+  badge.className = `ws-status-badge ${status}`;
+  if (txt) txt.innerText = text;
+}
+
 function initWebSocket() {
+  if (wsPingInterval) clearInterval(wsPingInterval);
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
+  updateWsBadge('connecting', 'Connecting...');
   ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    updateWsBadge('online', 'WS Live ⚡');
+    console.log('[WS] Connected to live Telematics stream');
+
+    // Keep alive ping every 20s
+    wsPingInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'ping' }));
+      }
+    }, 20000);
+  };
 
   ws.onmessage = (event) => {
     try {
@@ -425,7 +451,14 @@ function initWebSocket() {
   };
 
   ws.onclose = () => {
+    updateWsBadge('offline', 'Reconnecting...');
+    if (wsPingInterval) clearInterval(wsPingInterval);
     setTimeout(initWebSocket, 3000);
+  };
+
+  ws.onerror = (err) => {
+    console.warn('[WS] Error:', err);
+    updateWsBadge('offline', 'WS Error');
   };
 }
 
@@ -433,21 +466,32 @@ function handleWebSocketMessage(msg) {
   if (msg.event === 'telemetry') {
     const { imei, data } = msg.data;
     
-    const dev = allDevices.find(d => d.imei === imei);
+    let dev = allDevices.find(d => d.imei === imei);
     if (dev) {
       dev.lastTelemetry = data;
       dev.status = 'ONLINE';
+    } else {
+      // Auto-add new live device if not present
+      loadDevices();
     }
     updateFleetCounters();
     renderVehicleCards();
 
     if (imei === currentDeviceImei) {
       if (window.MapController) {
-        window.MapController.updateVehicleLocation(data.lat, data.lng, data.angle, data.speed, dev ? dev.category : 'OPEN TRUCK');
+        window.MapController.updateVehicleLocation(data.lat, data.lng, data.angle, data.speed, dev ? dev.category : 'CAR');
       }
       if (window.GaugesController) {
-        window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 480);
+        window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 50);
       }
+    }
+  } else if (msg.event === 'device_status') {
+    const { imei, status } = msg.data;
+    const dev = allDevices.find(d => d.imei === imei);
+    if (dev) {
+      dev.status = status;
+      updateFleetCounters();
+      renderVehicleCards();
     }
   } else if (msg.event === 'alert') {
     showAlertBanner(msg.data);
