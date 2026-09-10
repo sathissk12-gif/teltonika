@@ -54,7 +54,34 @@ function updateGauges(telemetry, tankCapacity = 480) {
   setCanVal('canFuelLiters', `${fuelLiters} L`);
   setCanVal('canFuelPct', `${fuelPct} %`);
   setCanVal('canDirectLiters', (telemetry.fuelLevelLiters !== undefined && telemetry.fuelLevelLiters !== null) ? `${parseFloat(telemetry.fuelLevelLiters).toFixed(1)} L` : '-- L');
-  setCanVal('canFuelRate', telemetry.fuelRate ? `${parseFloat(telemetry.fuelRate).toFixed(1)} L/h` : '0.0 L/h');
+  
+  const ecmCounted = telemetry.ecmTotalFuelConsumed !== undefined && telemetry.ecmTotalFuelConsumed !== null
+    ? `${parseFloat(telemetry.ecmTotalFuelConsumed).toFixed(1)} L`
+    : (telemetry.rawIos && telemetry.rawIos[88] ? `${(Number(telemetry.rawIos[88]) * 0.1).toFixed(1)} L` : '-- L');
+  setCanVal('canEcmCountedFuel', ecmCounted);
+
+  const injState = telemetry.injectionState || (telemetry.engineRpm > 0 ? 'ACTIVE_INJECTION' : 'ENGINE_OFF');
+  let injLabel = 'OFF';
+  let injClass = 'inactive';
+  if (injState === 'ACTIVE_INJECTION' || injState === 'INJECTING_POWER') {
+    injLabel = '⚡ INJECTING';
+    injClass = 'active';
+  } else if (injState === 'IDLE_INJECTION') {
+    injLabel = '🟢 IDLE PULSE';
+    injClass = 'active';
+  } else if (injState === 'HIGH_LOAD_BOOST') {
+    injLabel = '🔥 BOOST INJECT';
+    injClass = 'highlight';
+  } else if (injState === 'DECELERATION_CUTOFF') {
+    injLabel = '🛑 DFCO CUTOFF';
+    injClass = 'inactive';
+  }
+  setCanVal('canInjectorStatus', injLabel, injClass);
+
+  const fRate = (telemetry.fuelRateLitersPerHour !== undefined && telemetry.fuelRateLitersPerHour > 0)
+    ? parseFloat(telemetry.fuelRateLitersPerHour).toFixed(2)
+    : (telemetry.fuelRate ? parseFloat(telemetry.fuelRate).toFixed(2) : '0.00');
+  setCanVal('canFuelRate', `${fRate} L/h`);
   setCanVal('canTotalMileage', (telemetry.totalMileageCan !== undefined && telemetry.totalMileageCan !== null) ? `${parseFloat(telemetry.totalMileageCan).toLocaleString()} km` : (telemetry.odometer ? `${parseFloat(telemetry.odometer).toLocaleString()} km` : '-- km'));
   setCanVal('canVehicleRange', telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : '-- km');
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');

@@ -52,6 +52,7 @@ const AVL_DICTIONARY = {
   41: { name: 'evMotorTemp', label: 'EV Motor Temperature', unit: '°C' },
   42: { name: 'evRangeKm', label: 'EV Remaining Range', unit: 'km' },
 
+  49: { name: 'fuelRateObd', label: 'OBD Fuel Rate', unit: 'L/h', multiplier: 0.05 },
   81: { name: 'canSpeed', label: 'Vehicle Speed (CAN)', unit: 'km/h' },
   82: { name: 'acceleratorPedal', label: 'Accelerator Pedal Position', unit: '%' },
   83: { name: 'fuelLevelPercentage', label: 'Fuel Level (%)', unit: '%' },
@@ -59,8 +60,10 @@ const AVL_DICTIONARY = {
   85: { name: 'engineRpm', label: 'Engine RPM', unit: 'RPM' },
   86: { name: 'coolantTemp', label: 'Engine Coolant Temperature', unit: '°C', multiplier: 0.1 },
   87: { name: 'totalMileageCan', label: 'Total CAN Mileage', unit: 'km', multiplier: 0.001 },
-  88: { name: 'totalFuelConsumed', label: 'Total Fuel Consumed', unit: 'L', multiplier: 0.1 },
-  89: { name: 'fuelLevelPctCan', label: 'Fuel Level (%)', unit: '%' },
+  88: { name: 'totalFuelConsumed', label: 'Total Fuel Consumed (ECM Counted)', unit: 'L', multiplier: 0.1 },
+  89: { name: 'fuelRateCan', label: 'Instant Fuel Rate (CAN)', unit: 'L/h', multiplier: 0.1 },
+  108: { name: 'instantFuelRate', label: 'Instantaneous Fuel Rate (ECM)', unit: 'L/h', multiplier: 0.1 },
+  244: { name: 'fuelRateJ1939', label: 'Engine Fuel Rate (J1939)', unit: 'L/h', multiplier: 0.05 },
   
   90: { name: 'doorStatusMask', label: 'Door Status Mask', type: 'bitmask' },
   91: { name: 'seatbeltMask', label: 'Seatbelt Mask', type: 'bitmask' },

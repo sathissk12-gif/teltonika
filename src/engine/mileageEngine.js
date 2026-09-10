@@ -11,15 +11,16 @@ class MileageEngine {
   }
 
   /**
-   * Process incoming telemetry and append rich mileage metrics
+   * Process incoming telemetry and append rich mileage metrics with ECM Injection Data
    * @param {string} imei - Device IMEI
    * @param {object} telemetry - Current telemetry point
    * @param {object} deviceProfile - Device configuration (category, tankCapacity, etc.)
-   * @returns {object} Calculated mileage metrics
+   * @returns {object} Calculated mileage & ECM fuel metrics
    */
   process(imei, telemetry, deviceProfile = {}) {
     let trip = this.deviceTrips.get(imei);
     const now = Date.now();
+    const rawIos = telemetry.rawIos || {};
 
     const currentOdo = (telemetry.totalMileageCan && telemetry.totalMileageCan > 0) 
       ? telemetry.totalMileageCan 
@@ -30,23 +31,53 @@ class MileageEngine {
       : (telemetry.fuelLiters || 0);
 
     const speed = telemetry.speed || telemetry.canSpeed || 0;
-    const isIgnOn = Boolean(telemetry.ignition);
+    const engineRpm = telemetry.engineRpm || (rawIos[85] !== undefined ? Number(rawIos[85]) : (rawIos[32] !== undefined ? Number(rawIos[32]) : 0));
+    const acceleratorPedal = telemetry.acceleratorPedal !== undefined ? telemetry.acceleratorPedal : (rawIos[82] !== undefined ? Number(rawIos[82]) : (rawIos[35] !== undefined ? Number(rawIos[35]) : 0));
+    const engineLoad = telemetry.engineLoad !== undefined ? telemetry.engineLoad : (rawIos[31] !== undefined ? Number(rawIos[31]) : 0);
 
-    // Initialize Trip if not present or after reset
+    // Direct ECM Total Fuel Consumed (AVL ID 88 - Liters)
+    let ecmTotalFuelConsumed = null;
+    if (rawIos[88] !== undefined) {
+      ecmTotalFuelConsumed = parseFloat((Number(rawIos[88]) * 0.1).toFixed(2));
+    } else if (telemetry.totalFuelConsumed !== undefined && telemetry.totalFuelConsumed !== null) {
+      ecmTotalFuelConsumed = parseFloat(Number(telemetry.totalFuelConsumed).toFixed(2));
+    }
+
+    // Direct ECM Instant Fuel Rate (L/h)
+    let directEcmFuelRate = null;
+    if (rawIos[89] !== undefined) {
+      directEcmFuelRate = parseFloat((Number(rawIos[89]) * 0.1).toFixed(2));
+    } else if (rawIos[108] !== undefined) {
+      directEcmFuelRate = parseFloat((Number(rawIos[108]) * 0.1).toFixed(2));
+    } else if (rawIos[244] !== undefined) {
+      directEcmFuelRate = parseFloat((Number(rawIos[244]) * 0.05).toFixed(2));
+    } else if (rawIos[49] !== undefined) {
+      directEcmFuelRate = parseFloat((Number(rawIos[49]) * 0.05).toFixed(2));
+    }
+
+    const isIgnOn = Boolean(telemetry.ignition || engineRpm > 300);
+
+    // Initialize Trip if not present
     if (!trip) {
       trip = {
         startTime: now,
         startOdometer: currentOdo,
         startFuel: currentFuel,
+        startEcmFuel: ecmTotalFuelConsumed,
         lastTime: now,
         lastOdometer: currentOdo,
         lastFuel: currentFuel,
+        lastEcmFuel: ecmTotalFuelConsumed,
         accumulatedDistanceKm: 0,
         accumulatedFuelLiters: 0,
-        samples: 0,
-        lastSpeed: speed
+        samples: 0
       };
       this.deviceTrips.set(imei, trip);
+    }
+
+    if (trip.startEcmFuel === null && ecmTotalFuelConsumed !== null) {
+      trip.startEcmFuel = ecmTotalFuelConsumed;
+      trip.lastEcmFuel = ecmTotalFuelConsumed;
     }
 
     // Delta time in hours
@@ -63,52 +94,73 @@ class MileageEngine {
     trip.accumulatedDistanceKm += deltaDist;
     trip.lastOdometer = currentOdo;
 
-    // 2. Fuel Consumption Rate (L/h)
-    let fuelRateLitersPerHour = telemetry.fuelRate || 0;
-    if (!fuelRateLitersPerHour || fuelRateLitersPerHour === 0) {
-      if (isIgnOn) {
-        if (speed > 5) {
-          // Estimated based on vehicle category & speed
-          const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 15.0 : 4.5);
-          fuelRateLitersPerHour = parseFloat((speed / baseFuelEconomy).toFixed(2));
-        } else {
-          // Idling consumption (0.8 - 1.5 L/h)
-          fuelRateLitersPerHour = (deviceProfile.category === 'BIKE') ? 0.2 : (deviceProfile.category === 'CAR' ? 0.8 : 1.8);
-        }
+    // 2. Resolve Instant Fuel Rate (L/h) from ECM or High-Precision Model
+    let fuelRateLitersPerHour = 0;
+    if (directEcmFuelRate !== null && directEcmFuelRate > 0) {
+      fuelRateLitersPerHour = directEcmFuelRate;
+    } else if (isIgnOn && engineRpm > 0) {
+      if (speed > 5) {
+        // High precision load-based injection model
+        const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 15.0 : 4.5);
+        const loadFactor = engineLoad > 0 ? (0.6 + (engineLoad / 100) * 0.8) : (1.0 + (acceleratorPedal / 100) * 0.6);
+        fuelRateLitersPerHour = parseFloat(((speed / baseFuelEconomy) * loadFactor).toFixed(2));
+      } else {
+        // Idling injection rate (0.6 - 1.2 L/h based on RPM)
+        const idleBase = (deviceProfile.category === 'BIKE') ? 0.2 : (deviceProfile.category === 'CAR' ? 0.75 : 1.8);
+        const rpmFactor = Math.max(1.0, engineRpm / 800);
+        fuelRateLitersPerHour = parseFloat((idleBase * rpmFactor).toFixed(2));
       }
+    } else if (isIgnOn && speed > 5) {
+      const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 15.0 : 4.5);
+      fuelRateLitersPerHour = parseFloat((speed / baseFuelEconomy).toFixed(2));
     }
 
-    // Fuel consumed in delta time
-    if (dtHours > 0 && dtHours < 0.1 && fuelRateLitersPerHour > 0) {
+    // 3. Resolve Trip Fuel Consumed (Prefer Direct ECM Counted Fuel)
+    if (ecmTotalFuelConsumed !== null && trip.startEcmFuel !== null && ecmTotalFuelConsumed >= trip.startEcmFuel) {
+      trip.accumulatedFuelLiters = parseFloat((ecmTotalFuelConsumed - trip.startEcmFuel).toFixed(2));
+    } else if (dtHours > 0 && dtHours < 0.1 && fuelRateLitersPerHour > 0) {
       trip.accumulatedFuelLiters += (fuelRateLitersPerHour * dtHours);
     }
     trip.lastFuel = currentFuel;
 
-    // 3. Instantaneous Mileage (km/L)
+    // 4. Determine ECM Fuel Injector Status
+    let injectionState = 'OFF';
+    if (!isIgnOn || engineRpm === 0) {
+      injectionState = 'ENGINE_OFF';
+    } else if (speed > 25 && acceleratorPedal === 0 && engineRpm > 1200) {
+      injectionState = 'DECELERATION_CUTOFF'; // DFCO (Decel Fuel Cut-Off)
+    } else if (speed === 0 && engineRpm > 300) {
+      injectionState = 'IDLE_INJECTION';
+    } else if (acceleratorPedal > 40 || engineLoad > 60) {
+      injectionState = 'HIGH_LOAD_BOOST';
+    } else {
+      injectionState = 'ACTIVE_INJECTION';
+    }
+
+    // 5. Instantaneous Mileage (km/L)
     let instantKmPerLiter = 0;
     if (speed > 3 && fuelRateLitersPerHour > 0.05) {
       instantKmPerLiter = parseFloat((speed / fuelRateLitersPerHour).toFixed(1));
     }
 
-    // 4. Trip Average Mileage (km/L)
+    // 6. Trip Average Mileage (km/L)
     let tripDistanceKm = parseFloat(trip.accumulatedDistanceKm.toFixed(2));
     let tripFuelLiters = parseFloat(trip.accumulatedFuelLiters.toFixed(2));
     
-    // Default fallback based on vehicle category
     const defaultEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 14.8 : 4.2);
     let avgKmPerLiter = defaultEconomy;
 
-    if (tripDistanceKm > 0.5 && tripFuelLiters > 0.05) {
+    if (tripDistanceKm > 0.3 && tripFuelLiters > 0.02) {
       avgKmPerLiter = parseFloat((tripDistanceKm / tripFuelLiters).toFixed(1));
     }
 
-    // 5. Fuel Economy in L/100km
+    // 7. Fuel Economy in L/100km
     const lPer100Km = avgKmPerLiter > 0 ? parseFloat((100 / avgKmPerLiter).toFixed(1)) : 0;
 
-    // 6. Cost Per Kilometer (₹/km)
+    // 8. Cost Per Kilometer (₹/km)
     const costPerKm = avgKmPerLiter > 0 ? parseFloat((this.fuelPricePerLiter / avgKmPerLiter).toFixed(2)) : 0;
 
-    // 7. Estimated Remaining Driving Range (km)
+    // 9. Estimated Remaining Driving Range (km)
     let estimatedRangeKm = telemetry.vehicleRange || 0;
     if (!estimatedRangeKm || estimatedRangeKm === 0) {
       estimatedRangeKm = Math.round(currentFuel * avgKmPerLiter);
@@ -122,7 +174,11 @@ class MileageEngine {
       fuelEconomyLPer100Km: lPer100Km,
       costPerKm,
       estimatedRangeKm,
-      fuelRateLitersPerHour: parseFloat(fuelRateLitersPerHour.toFixed(2))
+      fuelRateLitersPerHour: parseFloat(fuelRateLitersPerHour.toFixed(2)),
+      injectionState,
+      ecmTotalFuelConsumed,
+      engineLoad,
+      acceleratorPedal
     };
   }
 

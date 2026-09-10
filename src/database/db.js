@@ -120,6 +120,11 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     tripDistance: mileageMetrics.tripDistanceKm || rawTel.tripDistance || 0,
     tripFuel: mileageMetrics.tripFuelConsumedLiters || rawTel.tripFuel || 0,
     costPerKm: mileageMetrics.costPerKm || rawTel.costPerKm || 0,
+    fuelRateLitersPerHour: mileageMetrics.fuelRateLitersPerHour !== undefined ? mileageMetrics.fuelRateLitersPerHour : (rawTel.fuelRateLitersPerHour || 0),
+    ecmTotalFuelConsumed: mileageMetrics.ecmTotalFuelConsumed !== undefined ? mileageMetrics.ecmTotalFuelConsumed : (ios[88] !== undefined ? parseFloat((Number(ios[88]) * 0.1).toFixed(2)) : (rawTel.ecmTotalFuelConsumed || null)),
+    injectionState: mileageMetrics.injectionState || rawTel.injectionState || (Number(engineRpm) > 0 ? 'ACTIVE_INJECTION' : 'ENGINE_OFF'),
+    acceleratorPedal: mileageMetrics.acceleratorPedal !== undefined ? mileageMetrics.acceleratorPedal : (ios[82] !== undefined ? Number(ios[82]) : (ios[35] !== undefined ? Number(ios[35]) : (rawTel.acceleratorPedal || 0))),
+    engineLoad: mileageMetrics.engineLoad !== undefined ? mileageMetrics.engineLoad : (ios[31] !== undefined ? Number(ios[31]) : (rawTel.engineLoad || 0)),
     rawIos: ios
   };
 }
