@@ -148,6 +148,7 @@ function loadDevices() {
     .then(data => {
       if (data.success) {
         allDevices = data.data || [];
+        window.allDevices = allDevices;
         updateFleetCounters();
         applyFleetFilters();
         populateCanDeviceSelect();
@@ -339,6 +340,7 @@ function renderVehicleCards() {
 
 function selectDevice(imei) {
   currentDeviceImei = imei;
+  window.currentDeviceImei = imei;
   const dev = allDevices.find(d => d.imei === imei);
   if (!dev) return;
 
