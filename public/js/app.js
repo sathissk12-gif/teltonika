@@ -47,10 +47,11 @@ function getVehicleIconPath(category = 'OPEN TRUCK', status = 'moving') {
 
 // Determine vehicle status mode
 function getVehicleStatusMode(dev) {
-  if (!dev || dev.status !== 'ONLINE') return 'OFFLINE';
+  const isOnline = Boolean(dev && dev.status === 'ONLINE' && dev.isSocketConnected !== false);
+  if (!isOnline) return 'OFFLINE';
   const tel = dev.lastTelemetry || {};
   if (tel.speed > 0) return 'MOVING';
-  if (tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1) return 'IDLE';
+  if (tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1 || Number(tel.engineRpm) > 300) return 'IDLE';
   return 'PARKED';
 }
 

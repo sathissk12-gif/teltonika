@@ -13,10 +13,14 @@ module.exports = (tcpServer, wsBroadcaster) => {
   router.get('/devices', (req, res) => {
     const devices = Database.getAllDevices();
     // Inject real-time TCP socket connection status
-    const result = devices.map(d => ({
-      ...d,
-      isSocketConnected: tcpServer.isDeviceOnline(d.imei)
-    }));
+    const result = devices.map(d => {
+      const isOnline = tcpServer.isDeviceOnline(d.imei);
+      return {
+        ...d,
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        isSocketConnected: isOnline
+      };
+    });
     res.json({ success: true, count: result.length, data: result });
   });
 
@@ -58,11 +62,13 @@ module.exports = (tcpServer, wsBroadcaster) => {
     if (!device) {
       return res.status(404).json({ success: false, error: 'Device not found' });
     }
+    const isOnline = tcpServer.isDeviceOnline(device.imei);
     res.json({
       success: true,
       data: {
         ...device,
-        isSocketConnected: tcpServer.isDeviceOnline(device.imei)
+        status: isOnline ? 'ONLINE' : 'OFFLINE',
+        isSocketConnected: isOnline
       }
     });
   });
