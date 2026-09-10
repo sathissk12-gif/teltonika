@@ -27,6 +27,103 @@ const db = {
 // Maximum historical records to retain in memory/file (e.g. last 10,000 positions)
 const MAX_HISTORY = 10000;
 
+// Normalize and re-evaluate telemetry from raw IOs
+function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, mileageMetrics = {}, gps = {}) {
+  const ios = rawIos || {};
+  
+  // Resolve Engine RPM (CAN IO 85 / OBD IO 32)
+  let engineRpm = rawTel.engineRpm;
+  if (engineRpm === undefined || engineRpm === null || engineRpm === 0) {
+    if (ios[85] !== undefined) engineRpm = Number(ios[85]);
+    else if (ios[32] !== undefined) engineRpm = Number(ios[32]);
+    else engineRpm = 0;
+  }
+
+  // Resolve Coolant Temperature (CAN IO 86 / OBD IO 36)
+  let coolantTemp = rawTel.coolantTemp;
+  if (coolantTemp === undefined || coolantTemp === null || coolantTemp === 0) {
+    if (ios[86] !== undefined) coolantTemp = parseFloat((Number(ios[86]) * 0.1).toFixed(1));
+    else if (ios[36] !== undefined) coolantTemp = Number(ios[36]);
+    else coolantTemp = 0;
+  }
+
+  // Resolve Direct CAN Liters (IO 84)
+  let fuelLevelLiters = rawTel.fuelLevelLiters;
+  if (fuelLevelLiters === undefined || fuelLevelLiters === null) {
+    if (ios[84] !== undefined) fuelLevelLiters = parseFloat((Number(ios[84]) * 0.1).toFixed(1));
+  }
+
+  // Resolve Fuel Liters (Calibrated or Direct CAN)
+  let fuelLiters = calculatedLiters || rawTel.fuelLiters;
+  if (!fuelLiters && fuelLevelLiters) fuelLiters = fuelLevelLiters;
+
+  // Resolve Total CAN Mileage (IO 87)
+  let totalMileageCan = rawTel.totalMileageCan;
+  if (totalMileageCan === undefined || totalMileageCan === null) {
+    if (ios[87] !== undefined) totalMileageCan = parseFloat((Number(ios[87]) * 0.001).toFixed(1));
+  }
+
+  // Resolve Vehicle Range (IO 866)
+  let vehicleRange = rawTel.vehicleRange;
+  if (vehicleRange === undefined || vehicleRange === null) {
+    if (ios[866] !== undefined) vehicleRange = Number(ios[866]);
+  }
+
+  // Resolve External Voltage (IO 66)
+  let externalVoltage = rawTel.externalVoltage;
+  if (!externalVoltage && ios[66] !== undefined) {
+    externalVoltage = parseFloat((Number(ios[66]) * 0.001).toFixed(2));
+  }
+
+  // Resolve Internal Battery Voltage (IO 67)
+  let batteryVoltage = rawTel.batteryVoltage;
+  if (!batteryVoltage && ios[67] !== undefined) {
+    batteryVoltage = parseFloat((Number(ios[67]) * 0.001).toFixed(2));
+  }
+
+  // Resolve Ignition (IO 239 / IO 1)
+  let ignition = rawTel.ignition;
+  if (ignition === undefined) {
+    if (ios[239] !== undefined) ignition = Number(ios[239]) === 1;
+    else if (ios[1] !== undefined) ignition = Number(ios[1]) === 1;
+    else if (rawTel.DIN1 !== undefined) ignition = Boolean(rawTel.DIN1);
+    else ignition = (gps.speed > 0);
+  }
+
+  // Resolve GSM Signal (IO 21)
+  let gsmSignal = rawTel.gsmSignal;
+  if (!gsmSignal && ios[21] !== undefined) gsmSignal = Number(ios[21]);
+
+  return {
+    ...rawTel,
+    ...mileageMetrics,
+    lat: gps.latitude || rawTel.lat || 0,
+    lng: gps.longitude || rawTel.lng || 0,
+    altitude: gps.altitude || rawTel.altitude || 0,
+    angle: gps.angle || rawTel.angle || 0,
+    speed: gps.speed || rawTel.speed || 0,
+    satellites: gps.satellites !== undefined ? gps.satellites : (rawTel.satellites || 0),
+    isValid: gps.isValid !== undefined ? gps.isValid : Boolean(rawTel.isValid),
+    ignition: Boolean(ignition),
+    engineRpm: Number(engineRpm || 0),
+    coolantTemp: Number(coolantTemp || 0),
+    fuelPercentage: rawTel.fuelLevelPercentage !== undefined ? rawTel.fuelLevelPercentage : (rawTel.fuelLevel !== undefined ? rawTel.fuelLevel : (fuelLevelLiters ? Math.round((fuelLevelLiters / 50) * 100) : 0)),
+    fuelLiters: fuelLiters,
+    fuelLevelLiters: fuelLevelLiters,
+    totalMileageCan: totalMileageCan,
+    vehicleRange: vehicleRange || mileageMetrics.estimatedRangeKm || null,
+    externalVoltage: externalVoltage || 0,
+    batteryVoltage: batteryVoltage || 0,
+    gsmSignal: gsmSignal || 0,
+    instantMileage: mileageMetrics.instantMileageKmPerLiter || rawTel.instantMileage || 0,
+    avgMileage: mileageMetrics.avgMileageKmPerLiter || rawTel.avgMileage || 0,
+    tripDistance: mileageMetrics.tripDistanceKm || rawTel.tripDistance || 0,
+    tripFuel: mileageMetrics.tripFuelConsumedLiters || rawTel.tripFuel || 0,
+    costPerKm: mileageMetrics.costPerKm || rawTel.costPerKm || 0,
+    rawIos: ios
+  };
+}
+
 // Clean initial load without hardcoded demo vehicles
 function loadFromFile() {
   try {
@@ -35,6 +132,26 @@ function loadFromFile() {
       const parsed = JSON.parse(raw);
       if (parsed.devices) {
         db.devices = new Map(Object.entries(parsed.devices));
+        // Auto-normalize lastTelemetry on load
+        for (const [imei, dev] of db.devices) {
+          if (dev.lastTelemetry) {
+            dev.lastTelemetry = normalizeTelemetry(
+              dev.lastTelemetry,
+              dev.lastTelemetry.rawIos || {},
+              dev.lastTelemetry.fuelLiters,
+              {},
+              {
+                latitude: dev.lastTelemetry.lat,
+                longitude: dev.lastTelemetry.lng,
+                speed: dev.lastTelemetry.speed,
+                satellites: dev.lastTelemetry.satellites,
+                angle: dev.lastTelemetry.angle,
+                altitude: dev.lastTelemetry.altitude,
+                isValid: dev.lastTelemetry.isValid
+              }
+            );
+          }
+        }
       }
       db.positions = parsed.positions || [];
       db.alerts = parsed.alerts || [];
@@ -110,72 +227,7 @@ const Database = {
     }
 
     const rawTel = record.telemetry || {};
-    const telemetry = {
-      ...rawTel,
-      ...mileageMetrics,
-      lat: record.gps.latitude,
-      lng: record.gps.longitude,
-      altitude: record.gps.altitude,
-      angle: record.gps.angle,
-      speed: record.gps.speed,
-      satellites: record.gps.satellites,
-      isValid: record.gps.isValid,
-      ignition: rawTel.ignition !== undefined 
-        ? Boolean(rawTel.ignition) 
-        : (rawTel.DIN1 !== undefined 
-            ? Boolean(rawTel.DIN1) 
-            : (record.gps.speed > 0)),
-      fuelPercentage: rawTel.fuelLevelPercentage !== undefined ? rawTel.fuelLevelPercentage : (rawTel.fuelLevel !== undefined ? rawTel.fuelLevel : 0),
-      fuelLiters: calculatedLiters,
-      fuelLevelLiters: rawTel.fuelLevelLiters !== undefined ? rawTel.fuelLevelLiters : null,
-      instantMileage: mileageMetrics.instantMileageKmPerLiter || 0,
-      avgMileage: mileageMetrics.avgMileageKmPerLiter || 0,
-      tripDistance: mileageMetrics.tripDistanceKm || 0,
-      tripFuel: mileageMetrics.tripFuelConsumedLiters || 0,
-      costPerKm: mileageMetrics.costPerKm || 0,
-      engineRpm: rawTel.engineRpm || 0,
-      engineLoad: rawTel.engineLoad || 0,
-      engineHours: rawTel.engineHours || 0,
-      oilPressure: rawTel.oilPressure || 0,
-      engineOilTemp: rawTel.engineOilTemp || 0,
-      acceleratorPedal: rawTel.acceleratorPedal || 0,
-      currentGear: rawTel.currentGear !== undefined ? rawTel.currentGear : 0,
-      fuelRate: rawTel.fuelRate || 0,
-      totalFuelConsumed: rawTel.totalFuelConsumed || 0,
-      totalMileageCan: rawTel.totalMileageCan !== undefined ? rawTel.totalMileageCan : null,
-      vehicleRange: rawTel.vehicleRange !== undefined ? rawTel.vehicleRange : (mileageMetrics.estimatedRangeKm || null),
-      lvcanAdapterId: rawTel.lvcanAdapterId || null,
-      cngRate: rawTel.cngRate || 0,
-      totalCngUsed: rawTel.totalCngUsed || 0,
-      evBatterySoc: rawTel.evBatterySoc !== undefined ? rawTel.evBatterySoc : null,
-      evBatteryVoltage: rawTel.evBatteryVoltage !== undefined ? rawTel.evBatteryVoltage : null,
-      evBatteryCurrent: rawTel.evBatteryCurrent !== undefined ? rawTel.evBatteryCurrent : null,
-      evMotorTemp: rawTel.evMotorTemp !== undefined ? rawTel.evMotorTemp : null,
-      evRangeKm: rawTel.evRangeKm !== undefined ? rawTel.evRangeKm : null,
-      axleWeight1: rawTel.axleWeight1 !== undefined ? rawTel.axleWeight1 : null,
-      axleWeight2: rawTel.axleWeight2 !== undefined ? rawTel.axleWeight2 : null,
-      axleWeight3: rawTel.axleWeight3 !== undefined ? rawTel.axleWeight3 : null,
-      airSuspensionPressure: rawTel.airSuspensionPressure !== undefined ? rawTel.airSuspensionPressure : null,
-      acStatus: Boolean(rawTel.acStatus),
-      handbrake: Boolean(rawTel.handbrake),
-      footBrake: Boolean(rawTel.footBrake),
-      clutch: Boolean(rawTel.clutch),
-      cruiseControl: Boolean(rawTel.cruiseControl),
-      doorMask: rawTel.doorStatusMask || 0,
-      seatbeltMask: rawTel.seatbeltMask || 0,
-      lightsMask: rawTel.lightsMask || 0,
-      dtcCount: rawTel.dtcCount || 0,
-      nextServiceDistance: rawTel.nextServiceDistance !== undefined ? rawTel.nextServiceDistance : null,
-      vinChassis: rawTel.vinChassis || null,
-      externalVoltage: rawTel.externalVoltage !== undefined ? rawTel.externalVoltage : 0,
-      batteryVoltage: rawTel.batteryVoltage !== undefined ? rawTel.batteryVoltage : 0,
-      gsmSignal: rawTel.gsmSignal || 0,
-      odometerKm: rawTel.odometer || 0,
-      tripOdometerKm: rawTel.tripOdometer || 0,
-      coolantTemp: rawTel.coolantTemp || 0,
-      adBlueLevel: rawTel.adBlueLevel !== undefined ? rawTel.adBlueLevel : null,
-      rawIos: record.rawIos
-    };
+    const telemetry = normalizeTelemetry(rawTel, record.rawIos, calculatedLiters, mileageMetrics, record.gps || {});
 
     // Update Device State
     device.status = 'ONLINE';
