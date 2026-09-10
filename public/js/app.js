@@ -216,11 +216,11 @@ function renderVehicleCards() {
           </div>
           <div class="card-metric-box">
             <div class="card-metric-label">Battery</div>
-            <div class="card-metric-val">${tel.externalVoltage || tel.batteryVoltage || 0}V</div>
+            <div class="card-metric-val">${tel.externalVoltage ? `${tel.externalVoltage}V` : (tel.batteryVoltage ? `${tel.batteryVoltage}V` : '0V')}</div>
           </div>
           <div class="card-metric-box">
-            <div class="card-metric-label">Odo</div>
-            <div class="card-metric-val">${tel.odometerKm ? (tel.odometerKm > 1000 ? (tel.odometerKm/1000).toFixed(0)+'k' : tel.odometerKm) : '0'}</div>
+            <div class="card-metric-label">CAN ODO</div>
+            <div class="card-metric-val">${(tel.totalMileageCan && tel.totalMileageCan > 0) ? (tel.totalMileageCan > 1000 ? `${(tel.totalMileageCan / 1000).toFixed(1)}k` : `${tel.totalMileageCan}`) : (tel.odometer ? `${tel.odometer}k` : '0')}</div>
           </div>
         </div>
 

@@ -79,17 +79,24 @@ const AVL_DICTIONARY = {
   100: { name: 'axleWeight2', label: 'Axle Weight 2', unit: 'kg' },
   101: { name: 'axleWeight3', label: 'Axle Weight 3', unit: 'kg' },
   102: { name: 'adBlueLevel', label: 'AdBlue / DEF Fluid Level', unit: '%' },
-  103: { name: 'ptoState', label: 'PTO (Power Take-Off) State', type: 'boolean' },
+  103: { name: 'engineWorktimeCounted', label: 'Engine Worktime (ECM Counted)', unit: 'min' },
   104: { name: 'retarderTorque', label: 'Retarder Actual Torque', unit: '%' },
   105: { name: 'airSuspensionPressure', label: 'Air Suspension Pressure', unit: 'bar', multiplier: 0.1 },
   106: { name: 'ambientTemp', label: 'Ambient Air Temperature', unit: '°C' },
   107: { name: 'vinChassis', label: 'Vehicle VIN Number', type: 'string' },
-  115: { name: 'oilPressure', label: 'Engine Oil Pressure', unit: 'bar', multiplier: 0.1 },
+  115: { name: 'oilPressure', label: 'Engine Oil Pressure / Temp', unit: 'bar', multiplier: 0.1 },
   116: { name: 'cngRate', label: 'CNG Gaseous Fuel Rate', unit: 'kg/h', multiplier: 0.1 },
   117: { name: 'totalCngUsed', label: 'Total CNG Used', unit: 'kg', multiplier: 0.1 },
+  123: { name: 'controlFlags', label: 'CAN Control State Flags', type: 'integer' },
   132: { name: 'nextServiceDistance', label: 'Distance Till Next Service', unit: 'km' },
-  388: { name: 'lvcanAdapterId', label: 'LVCAN Adapter ID', type: 'string' },
-  866: { name: 'vehicleRange', label: 'Vehicle Range (CAN)', unit: 'km' }
+  181: { name: 'gnssPdop', label: 'GNSS PDOP Accuracy', multiplier: 0.1 },
+  182: { name: 'gnssHdop', label: 'GNSS HDOP Accuracy', multiplier: 0.1 },
+  200: { name: 'sleepMode', label: 'Device Sleep Mode State', type: 'integer' },
+  388: { name: 'lvcanAdapterId', label: 'LVCAN Adapter Hardware ID', type: 'string' },
+  517: { name: 'securityFlagsP4', label: 'Security State Flags P4', type: 'string' },
+  866: { name: 'vehicleRange', label: 'Vehicle Range (CAN)', unit: 'km' },
+  910: { name: 'ecoScoreAcceleration', label: 'Eco-Driving Acceleration Score', unit: 'points' },
+  911: { name: 'ecoScoreBraking', label: 'Eco-Driving Braking Score', unit: 'points' }
 };
 
 function getAvlDefinition(avlId) {

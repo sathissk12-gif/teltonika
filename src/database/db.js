@@ -125,6 +125,12 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     injectionState: mileageMetrics.injectionState || rawTel.injectionState || (Number(engineRpm) > 0 ? 'ACTIVE_INJECTION' : 'ENGINE_OFF'),
     acceleratorPedal: mileageMetrics.acceleratorPedal !== undefined ? mileageMetrics.acceleratorPedal : (ios[82] !== undefined ? Number(ios[82]) : (ios[35] !== undefined ? Number(ios[35]) : (rawTel.acceleratorPedal || 0))),
     engineLoad: mileageMetrics.engineLoad !== undefined ? mileageMetrics.engineLoad : (ios[31] !== undefined ? Number(ios[31]) : (rawTel.engineLoad || 0)),
+    engineWorktimeCounted: ios[103] !== undefined ? Number(ios[103]) : (rawTel.engineWorktimeCounted || null),
+    oilPressure: ios[115] !== undefined ? parseFloat((Number(ios[115]) * 0.1).toFixed(1)) : (rawTel.oilPressure || null),
+    gnssPdop: ios[181] !== undefined ? parseFloat((Number(ios[181]) * 0.1).toFixed(1)) : null,
+    gnssHdop: ios[182] !== undefined ? parseFloat((Number(ios[182]) * 0.1).toFixed(1)) : null,
+    sleepMode: ios[200] !== undefined ? Number(ios[200]) : 0,
+    lvcanAdapterId: ios[388] || rawTel.lvcanAdapterId || null,
     rawIos: ios
   };
 }
