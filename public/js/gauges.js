@@ -46,9 +46,9 @@ function updateGauges(telemetry, tankCapacity = 480) {
   // 3. Fuel, DEF & Emissions CAN Cluster
   setCanVal('canFuelLiters', `${fuelLiters} L`);
   setCanVal('canFuelPct', `${fuelPct} %`);
-  setCanVal('canDirectLiters', telemetry.fuelLevelLiters ? `${telemetry.fuelLevelLiters} L` : '-- L');
-  setCanVal('canFuelRate', telemetry.fuelRate ? `${telemetry.fuelRate.toFixed(1)} L/h` : '0.0 L/h');
-  setCanVal('canTotalFuel', telemetry.totalFuelConsumed ? `${telemetry.totalFuelConsumed.toFixed(1)} L` : '0.0 L');
+  setCanVal('canDirectLiters', (telemetry.fuelLevelLiters !== undefined && telemetry.fuelLevelLiters !== null) ? `${parseFloat(telemetry.fuelLevelLiters).toFixed(1)} L` : '-- L');
+  setCanVal('canFuelRate', telemetry.fuelRate ? `${parseFloat(telemetry.fuelRate).toFixed(1)} L/h` : '0.0 L/h');
+  setCanVal('canTotalFuel', telemetry.totalFuelConsumed ? `${parseFloat(telemetry.totalFuelConsumed).toFixed(1)} L` : (telemetry.totalMileageCan ? `${parseFloat(telemetry.totalMileageCan).toFixed(1)} km` : '0.0 L'));
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');
   setCanVal('canCng', telemetry.totalCngUsed ? `${telemetry.totalCngUsed} kg` : '-- kg');
   setCanVal('canServiceDist', telemetry.nextServiceDistance ? `${telemetry.nextServiceDistance.toLocaleString()} km` : '-- km');
@@ -56,8 +56,8 @@ function updateGauges(telemetry, tankCapacity = 480) {
   // 4. Electrical, Body & Comfort CAN Cluster
   const isIgnOn = telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1;
   setCanVal('canIgnition', isIgnOn ? 'IGNITION ON 🟢' : 'IGNITION OFF', isIgnOn ? 'active' : 'inactive');
-  setCanVal('canExtVolt', `${telemetry.externalVoltage || telemetry.batteryVoltage || 0} V`);
-  setCanVal('canIntVolt', `${telemetry.batteryVoltage || '4.1'} V`);
+  setCanVal('canExtVolt', (telemetry.externalVoltage !== undefined && telemetry.externalVoltage !== null && telemetry.externalVoltage > 0) ? `${parseFloat(telemetry.externalVoltage).toFixed(1)} V` : '-- V');
+  setCanVal('canIntVolt', (telemetry.batteryVoltage !== undefined && telemetry.batteryVoltage !== null && telemetry.batteryVoltage > 0) ? `${parseFloat(telemetry.batteryVoltage).toFixed(2)} V` : '-- V');
   setCanVal('canAc', telemetry.acStatus ? 'ON ❄️' : 'OFF', telemetry.acStatus ? 'active' : 'inactive');
   setCanVal('canHandbrake', telemetry.handbrake ? 'ENGAGED 🛑' : 'RELEASED', telemetry.handbrake ? 'active' : 'inactive');
   setCanVal('canFootBrake', telemetry.footBrake ? 'ACTIVE 🦶' : 'OFF', telemetry.footBrake ? 'active' : 'inactive');

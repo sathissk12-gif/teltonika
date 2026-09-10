@@ -3,51 +3,45 @@
     "353742372466615": {
       "imei": "353742372466615",
       "vehicleNumber": "TN-30-AZ-1234",
-      "model": "Bajaj Pulsar 150 BS6",
-      "category": "BIKE",
-      "tankCapacity": 15,
-      "fuelSource": "ANALOG_AIN1",
+      "model": "Teltonika FMB150 (CAN Tracker)",
+      "category": "CAR",
+      "tankCapacity": 50,
+      "fuelSource": "CAN_LITERS",
       "calibrationPoints": [
         {
           "raw": 0,
           "liters": 0
         },
         {
-          "raw": 25,
-          "liters": 3.75
-        },
-        {
           "raw": 50,
-          "liters": 7.5
-        },
-        {
-          "raw": 75,
-          "liters": 11.25
+          "liters": 25
         },
         {
           "raw": 100,
-          "liters": 15
+          "liters": 50
         }
       ],
-      "status": "OFFLINE",
-      "lastUpdated": "2026-09-10T07:28:05.486Z",
+      "status": "ONLINE",
+      "lastUpdated": "2026-09-10T07:45:00.000Z",
       "lastTelemetry": {
-        "odometer": 142580.6,
-        "engineRpm": 1650,
-        "coolantTemp": 40,
-        "externalVoltage": 24.2,
-        "fuelLevelPercentage": 74,
-        "adBlueLevel": 86,
+        "odometer": 109605,
+        "engineRpm": 0,
+        "coolantTemp": 0,
+        "externalVoltage": 12.7,
+        "batteryVoltage": 3.72,
+        "fuelLevelPercentage": 50,
+        "fuelLevelLiters": 24.8,
+        "fuelPercentage": 50,
+        "fuelLiters": 24.8,
+        "adBlueLevel": null,
         "ignition": false,
-        "lat": 11.65,
-        "lng": 78.16,
-        "altitude": 278,
-        "angle": 180,
-        "speed": 45,
+        "lat": 11.6804966,
+        "lng": 78.1701116,
+        "altitude": 280,
+        "angle": 0,
+        "speed": 0,
         "satellites": 14,
         "isValid": true,
-        "fuelPercentage": 74,
-        "fuelLiters": 11.1,
         "engineLoad": 0,
         "engineHours": 0,
         "oilPressure": 0,
@@ -56,6 +50,9 @@
         "currentGear": 0,
         "fuelRate": 0,
         "totalFuelConsumed": 0,
+        "totalMileageCan": 109605,
+        "vehicleRange": 2576,
+        "lvcanAdapterId": "0031c22f411b0024001632323859534643",
         "cngRate": 0,
         "totalCngUsed": 0,
         "evBatterySoc": null,
@@ -78,18 +75,17 @@
         "dtcCount": 0,
         "nextServiceDistance": null,
         "vinChassis": null,
-        "batteryVoltage": 24.2,
-        "gsmSignal": 0,
-        "odometerKm": 142580.6,
+        "gsmSignal": 22,
+        "odometerKm": 109605,
         "tripOdometerKm": 0,
         "rawIos": {
-          "16": 142580600,
-          "32": 1650,
-          "36": 40,
-          "66": 24200,
-          "83": 74,
-          "102": 86,
-          "239": 0
+          "16": 109605000,
+          "66": 12701,
+          "67": 3717,
+          "84": 248,
+          "87": 109605000,
+          "388": "0031c22f411b0024001632323859534643",
+          "866": 2576
         }
       }
     }

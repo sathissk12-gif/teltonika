@@ -55,10 +55,10 @@ const AVL_DICTIONARY = {
   81: { name: 'overspeedCan', label: 'CAN Overspeed Alert', type: 'boolean' },
   82: { name: 'engineWorkTime', label: 'Engine Work Time', unit: 'h', multiplier: 0.1 },
   83: { name: 'fuelLevelPercentage', label: 'Fuel Level (%)', unit: '%' },
-  84: { name: 'fuelLevelLiters', label: 'Fuel Level (Direct Liters)', unit: 'L' },
+  84: { name: 'fuelLevelLiters', label: 'Fuel Level (Direct Liters)', unit: 'L', multiplier: 0.1 },
   85: { name: 'engineOilLevel', label: 'Engine Oil Level', unit: '%' },
   86: { name: 'engineOilTemp', label: 'Engine Oil Temperature', unit: '°C' },
-  87: { name: 'totalFuelConsumed', label: 'Total Fuel Consumed', unit: 'L', multiplier: 0.1 },
+  87: { name: 'totalMileageCan', label: 'Total CAN Mileage', unit: 'km', multiplier: 0.001 },
   89: { name: 'fuelRate', label: 'Fuel Consumption Rate', unit: 'L/h', multiplier: 0.1 },
   
   90: { name: 'doorStatusMask', label: 'Door Status Mask', type: 'bitmask' },
@@ -83,7 +83,9 @@ const AVL_DICTIONARY = {
   115: { name: 'oilPressure', label: 'Engine Oil Pressure', unit: 'bar', multiplier: 0.1 },
   116: { name: 'cngRate', label: 'CNG Gaseous Fuel Rate', unit: 'kg/h', multiplier: 0.1 },
   117: { name: 'totalCngUsed', label: 'Total CNG Used', unit: 'kg', multiplier: 0.1 },
-  132: { name: 'nextServiceDistance', label: 'Distance Till Next Service', unit: 'km' }
+  132: { name: 'nextServiceDistance', label: 'Distance Till Next Service', unit: 'km' },
+  388: { name: 'lvcanAdapterId', label: 'LVCAN Adapter ID', type: 'string' },
+  866: { name: 'vehicleRange', label: 'Vehicle Range (CAN)', unit: 'km' }
 };
 
 function getAvlDefinition(avlId) {
