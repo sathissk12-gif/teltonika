@@ -50,10 +50,11 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     else engineRpm = 0;
   }
 
-  // Resolve Coolant Temperature (CAN IO 86 / OBD IO 36)
+  // Resolve Coolant Temperature (CAN IO 86 / CAN IO 115 / OBD IO 36)
   let coolantTemp = rawTel.coolantTemp;
   if (coolantTemp === undefined || coolantTemp === null || coolantTemp === 0) {
     if (ios[86] !== undefined) coolantTemp = parseFloat((Number(ios[86]) * 0.1).toFixed(1));
+    else if (ios[115] !== undefined && Number(ios[115]) > 200 && Number(ios[115]) < 1500) coolantTemp = parseFloat((Number(ios[115]) * 0.1).toFixed(1));
     else if (ios[36] !== undefined) coolantTemp = Number(ios[36]);
     else coolantTemp = 0;
   }
@@ -78,6 +79,17 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
   let vehicleRange = rawTel.vehicleRange;
   if (vehicleRange === undefined || vehicleRange === null) {
     if (ios[866] !== undefined) vehicleRange = Number(ios[866]);
+  }
+
+  // Resolve Next Service Distance (IO 132)
+  let nextServiceDistance = rawTel.nextServiceDistance;
+  if (ios[132] !== undefined) {
+    const raw132 = Number(ios[132]);
+    if (!isNaN(raw132) && raw132 > 0 && raw132 < 500000) {
+      nextServiceDistance = raw132;
+    } else {
+      nextServiceDistance = null;
+    }
   }
 
   // Resolve External Voltage (IO 66)
@@ -132,6 +144,7 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     fuelLevelLiters: fuelLevelLiters,
     totalMileageCan: totalMileageCan,
     vehicleRange: vehicleRange || mileageMetrics.estimatedRangeKm || null,
+    nextServiceDistance: nextServiceDistance,
     externalVoltage: externalVoltage || 0,
     batteryVoltage: batteryVoltage || 0,
     gsmSignal: gsmSignal || 0,
@@ -141,7 +154,7 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     tripFuel: mileageMetrics.tripFuelConsumedLiters || rawTel.tripFuel || 0,
     costPerKm: mileageMetrics.costPerKm || rawTel.costPerKm || 0,
     fuelRateLitersPerHour: mileageMetrics.fuelRateLitersPerHour !== undefined ? mileageMetrics.fuelRateLitersPerHour : (rawTel.fuelRateLitersPerHour || 0),
-    ecmTotalFuelConsumed: mileageMetrics.ecmTotalFuelConsumed !== undefined ? mileageMetrics.ecmTotalFuelConsumed : (ios[88] !== undefined ? parseFloat((Number(ios[88]) * 0.1).toFixed(2)) : (rawTel.ecmTotalFuelConsumed || null)),
+    ecmTotalFuelConsumed: mileageMetrics.ecmTotalFuelConsumed !== undefined ? mileageMetrics.ecmTotalFuelConsumed : (ios[88] !== undefined ? parseFloat((Number(ios[88]) * 0.1).toFixed(2)) : (ios[107] !== undefined ? parseFloat((Number(ios[107]) * 0.1).toFixed(2)) : (rawTel.ecmTotalFuelConsumed || null))),
     injectionState: mileageMetrics.injectionState || rawTel.injectionState || (Number(engineRpm) > 0 ? 'ACTIVE_INJECTION' : 'ENGINE_OFF'),
     acceleratorPedal: mileageMetrics.acceleratorPedal !== undefined ? mileageMetrics.acceleratorPedal : (ios[82] !== undefined ? Number(ios[82]) : (ios[35] !== undefined ? Number(ios[35]) : (rawTel.acceleratorPedal || 0))),
     engineLoad: mileageMetrics.engineLoad !== undefined ? mileageMetrics.engineLoad : (ios[31] !== undefined ? Number(ios[31]) : (rawTel.engineLoad || 0)),

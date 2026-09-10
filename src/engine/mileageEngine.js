@@ -35,10 +35,12 @@ class MileageEngine {
     const acceleratorPedal = telemetry.acceleratorPedal !== undefined ? telemetry.acceleratorPedal : (rawIos[82] !== undefined ? Number(rawIos[82]) : (rawIos[35] !== undefined ? Number(rawIos[35]) : 0));
     const engineLoad = telemetry.engineLoad !== undefined ? telemetry.engineLoad : (rawIos[31] !== undefined ? Number(rawIos[31]) : 0);
 
-    // Direct ECM Total Fuel Consumed (AVL ID 88 - Liters)
+    // Direct ECM Total Fuel Consumed (AVL ID 88 / AVL ID 107 - Liters)
     let ecmTotalFuelConsumed = null;
     if (rawIos[88] !== undefined) {
       ecmTotalFuelConsumed = parseFloat((Number(rawIos[88]) * 0.1).toFixed(2));
+    } else if (rawIos[107] !== undefined) {
+      ecmTotalFuelConsumed = parseFloat((Number(rawIos[107]) * 0.1).toFixed(2));
     } else if (telemetry.totalFuelConsumed !== undefined && telemetry.totalFuelConsumed !== null) {
       ecmTotalFuelConsumed = parseFloat(Number(telemetry.totalFuelConsumed).toFixed(2));
     }

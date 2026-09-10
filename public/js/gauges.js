@@ -57,7 +57,7 @@ function updateGauges(telemetry, tankCapacity = 480) {
   
   const ecmCounted = telemetry.ecmTotalFuelConsumed !== undefined && telemetry.ecmTotalFuelConsumed !== null
     ? `${parseFloat(telemetry.ecmTotalFuelConsumed).toFixed(1)} L`
-    : (telemetry.rawIos && telemetry.rawIos[88] ? `${(Number(telemetry.rawIos[88]) * 0.1).toFixed(1)} L` : '-- L');
+    : (telemetry.rawIos && telemetry.rawIos[88] ? `${(Number(telemetry.rawIos[88]) * 0.1).toFixed(1)} L` : (telemetry.rawIos && telemetry.rawIos[107] ? `${(Number(telemetry.rawIos[107]) * 0.1).toFixed(1)} L` : '-- L'));
   setCanVal('canEcmCountedFuel', ecmCounted);
 
   const injState = telemetry.injectionState || (telemetry.engineRpm > 0 ? 'ACTIVE_INJECTION' : 'ENGINE_OFF');
@@ -85,7 +85,12 @@ function updateGauges(telemetry, tankCapacity = 480) {
   setCanVal('canTotalMileage', (telemetry.totalMileageCan !== undefined && telemetry.totalMileageCan !== null) ? `${parseFloat(telemetry.totalMileageCan).toLocaleString()} km` : (telemetry.odometer ? `${parseFloat(telemetry.odometer).toLocaleString()} km` : '-- km'));
   setCanVal('canVehicleRange', telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : '-- km');
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');
-  setCanVal('canServiceDist', telemetry.nextServiceDistance ? `${telemetry.nextServiceDistance.toLocaleString()} km` : '-- km');
+  
+  const svcRaw = Number(telemetry.nextServiceDistance);
+  const svcDist = (!isNaN(svcRaw) && svcRaw > 0 && svcRaw < 500000)
+    ? `${svcRaw.toLocaleString()} km`
+    : '-- km';
+  setCanVal('canServiceDist', svcDist);
 
   // Real-Time Mileage & Economy Hub
   const instantM = (telemetry.instantMileageKmPerLiter && telemetry.instantMileageKmPerLiter > 0) 
