@@ -21,11 +21,22 @@ const db = {
   devices: new Map(),
   positions: [],
   alerts: [],
-  commandLogs: []
+  commandLogs: [],
+  trips: []
 };
 
 // Maximum historical records to retain in memory/file (e.g. last 10,000 positions)
 const MAX_HISTORY = 10000;
+
+// Debounced Disk Persistence Queue
+let saveTimer = null;
+function triggerDebouncedSave() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    saveToFile();
+  }, 1000);
+}
 
 // Normalize and re-evaluate telemetry from raw IOs
 function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, mileageMetrics = {}, gps = {}) {
@@ -296,7 +307,7 @@ const Database = {
     };
     db.commandLogs.unshift(record);
     if (db.commandLogs.length > 500) db.commandLogs.pop();
-    saveToFile();
+    triggerDebouncedSave();
     return record;
   },
 
@@ -305,6 +316,58 @@ const Database = {
       return db.commandLogs.filter(c => c.imei === imei);
     }
     return db.commandLogs;
+  },
+
+  saveTrip(trip) {
+    const tripRecord = {
+      id: trip.tripId || `TRIP-${Date.now().toString(36).toUpperCase()}`,
+      createdAt: new Date().toISOString(),
+      ...trip
+    };
+    db.trips.unshift(tripRecord);
+    if (db.trips.length > 1000) db.trips.pop();
+    triggerDebouncedSave();
+    return tripRecord;
+  },
+
+  getTrips(imei = null, limit = 50) {
+    if (imei) {
+      return db.trips.filter(t => t.imei === imei).slice(0, limit);
+    }
+    return db.trips.slice(0, limit);
+  },
+
+  getFleetAnalytics() {
+    const devices = Array.from(db.devices.values());
+    let totalKm = 0;
+    let totalFuelLiters = 0;
+    let onlineCount = 0;
+    let movingCount = 0;
+    let idleCount = 0;
+
+    devices.forEach(d => {
+      if (d.status === 'ONLINE') onlineCount++;
+      const tel = d.lastTelemetry || {};
+      if (tel.speed > 0) movingCount++;
+      else if (tel.ignition) idleCount++;
+
+      if (tel.totalMileageCan) totalKm += tel.totalMileageCan;
+      else if (tel.odometer) totalKm += tel.odometer;
+
+      if (tel.tripFuel) totalFuelLiters += tel.tripFuel;
+    });
+
+    return {
+      totalVehicles: devices.length,
+      onlineVehicles: onlineCount,
+      movingVehicles: movingCount,
+      idleVehicles: idleCount,
+      parkedVehicles: Math.max(0, onlineCount - movingCount - idleCount),
+      totalFleetOdometerKm: parseFloat(totalKm.toFixed(1)),
+      totalFuelConsumedLiters: parseFloat(totalFuelLiters.toFixed(2)),
+      totalTripsCompleted: db.trips.length,
+      totalAlerts: db.alerts.length
+    };
   }
 };
 

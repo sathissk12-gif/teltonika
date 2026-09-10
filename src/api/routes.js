@@ -232,5 +232,52 @@ module.exports = (tcpServer, wsBroadcaster) => {
     res.json({ success: true, message: 'Telemetry injected successfully', data: saved });
   });
 
+  // 10. Get Device Completed Trips
+  router.get('/devices/:imei/trips', (req, res) => {
+    const trips = Database.getTrips(req.params.imei, parseInt(req.query.limit, 10) || 50);
+    res.json({ success: true, count: trips.length, data: trips });
+  });
+
+  // 11. Get Driver Behavior & Eco Score
+  router.get('/devices/:imei/driver-score', (req, res) => {
+    const metrics = tcpServer.driverBehaviorEngine ? tcpServer.driverBehaviorEngine.getMetrics(req.params.imei) : null;
+    const device = Database.getDevice(req.params.imei);
+    const lastTel = device ? device.lastTelemetry : {};
+    res.json({
+      success: true,
+      data: {
+        imei: req.params.imei,
+        safetyScore: lastTel.safetyScore || (metrics ? metrics.safetyScore : 95),
+        ratingLabel: lastTel.ratingLabel || (metrics ? metrics.ratingLabel : 'EXEMPLARY'),
+        ratingBadge: lastTel.ratingBadge || (metrics ? metrics.ratingBadge : '🏆'),
+        harshAccelCount: lastTel.harshAccelCount || (metrics ? metrics.harshAccelCount : 0),
+        harshBrakeCount: lastTel.harshBrakeCount || (metrics ? metrics.harshBrakeCount : 0),
+        harshCornerCount: lastTel.harshCornerCount || (metrics ? metrics.harshCornerCount : 0),
+        overspeedCount: lastTel.overspeedCount || (metrics ? metrics.overspeedCount : 0),
+        idleTimeMinutes: lastTel.idleTimeMinutes || (metrics ? metrics.idleTimeMinutes : 0),
+        drivingTimeMinutes: lastTel.drivingTimeMinutes || (metrics ? metrics.drivingTimeMinutes : 0)
+      }
+    });
+  });
+
+  // 12. Fleet Overview & Aggregated Analytics
+  router.get('/fleet/analytics', (req, res) => {
+    const analytics = Database.getFleetAnalytics();
+    res.json({ success: true, data: analytics });
+  });
+
+  // 13. System Health & Diagnostics
+  router.get('/health', (req, res) => {
+    res.json({
+      success: true,
+      service: 'Traxen Teltonika Telematics Hub',
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+      activeSocketsCount: tcpServer.activeSockets.size,
+      connectedImeis: Array.from(tcpServer.activeSockets.keys()),
+      memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+    });
+  });
+
   return router;
 };

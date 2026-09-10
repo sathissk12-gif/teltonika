@@ -13,6 +13,8 @@ const { decodeCodec12Response, encodeCodec12Command } = require('../parser/codec
 const { calculateLiters } = require('../engine/calibration');
 const FuelTheftDetector = require('../engine/theftDetector');
 const MileageEngine = require('../engine/mileageEngine');
+const DriverBehaviorEngine = require('../engine/driverBehavior');
+const TripEngine = require('../engine/tripEngine');
 const Database = require('../database/db');
 
 class TeltonikaTcpServer {
@@ -25,6 +27,8 @@ class TeltonikaTcpServer {
       refuelThresholdLiters: config.defaultRefuelThresholdLiters
     });
     this.mileageEngine = new MileageEngine();
+    this.driverBehaviorEngine = new DriverBehaviorEngine();
+    this.tripEngine = new TripEngine();
     this.wsBroadcaster = null; // Injected WebSocket broadcaster
     this.server = null;
   }
@@ -36,6 +40,9 @@ class TeltonikaTcpServer {
   start() {
     return new Promise((resolve, reject) => {
       this.server = net.createServer((socket) => {
+        // Robust Socket Performance: Enable TCP Keep-Alive and Inactivity Timeout
+        socket.setKeepAlive(true, 30000);
+        socket.setTimeout(180000); // 3-minute timeout for stale sockets
         this.handleConnection(socket);
       });
 
@@ -167,10 +174,33 @@ class TeltonikaTcpServer {
               // 2. Compute Mileage & Fuel Economy Metrics
               const mileageMetrics = this.mileageEngine.process(authenticatedImei, record.telemetry, device || {});
 
-              // 3. Save Telemetry into Database
-              const savedItem = Database.saveTelemetry(authenticatedImei, record, calculatedLiters, mileageMetrics);
+              // 3. Compute Driver Behavior & Eco Score
+              const driverMetrics = this.driverBehaviorEngine.process(authenticatedImei, {
+                ...record.telemetry,
+                ...mileageMetrics,
+                timestamp: record.timestamp
+              });
 
-              // 3. Fuel Theft / Refuel Analysis
+              // 4. Trip Segmentation & Lifecycle
+              const completedTrip = this.tripEngine.process(authenticatedImei, {
+                ...record.telemetry,
+                ...mileageMetrics,
+                timestamp: record.timestamp
+              });
+              if (completedTrip) {
+                Database.saveTrip(completedTrip);
+                if (this.wsBroadcaster) {
+                  this.wsBroadcaster.broadcast('trip_completed', completedTrip);
+                }
+              }
+
+              // 5. Save Telemetry into Database
+              const savedItem = Database.saveTelemetry(authenticatedImei, record, calculatedLiters, {
+                ...mileageMetrics,
+                ...driverMetrics
+              });
+
+              // 6. Fuel Theft / Refuel Analysis
               const alert = this.theftDetector.process(authenticatedImei, savedItem);
               if (alert) {
                 const savedAlert = Database.saveAlert({
@@ -184,7 +214,25 @@ class TeltonikaTcpServer {
                 }
               }
 
-              // 4. Real-Time Broadcast via WebSocket
+              // 7. Driver Behavior Alerts (Harsh Accel / Brake / Corner / Overspeed)
+              if (driverMetrics.latestEvent) {
+                const driverAlert = Database.saveAlert({
+                  imei: authenticatedImei,
+                  vehicleNumber: device ? device.vehicleNumber : `VEH-${authenticatedImei.slice(-4)}`,
+                  type: driverMetrics.latestEvent.type,
+                  severity: driverMetrics.latestEvent.severity || 'MEDIUM',
+                  title: `Driving Event: ${driverMetrics.latestEvent.type.replace(/_/g, ' ')}`,
+                  message: `Detected ${driverMetrics.latestEvent.type.replace(/_/g, ' ')} (${driverMetrics.latestEvent.value} ${driverMetrics.latestEvent.unit}) at ${driverMetrics.latestEvent.speed} km/h`,
+                  lat: record.gps ? record.gps.latitude : 0,
+                  lng: record.gps ? record.gps.longitude : 0
+                });
+
+                if (this.wsBroadcaster) {
+                  this.wsBroadcaster.broadcast('driver_event', driverAlert);
+                }
+              }
+
+              // 8. Real-Time Broadcast via WebSocket
               if (this.wsBroadcaster) {
                 this.wsBroadcaster.broadcast('telemetry', {
                   imei: authenticatedImei,
