@@ -149,10 +149,11 @@ function renderVehicleCards() {
   }
 
   container.innerHTML = filteredDevices.map(dev => {
+    const isOnline = (dev.status === 'ONLINE' && dev.isSocketConnected !== false);
     const mode = getVehicleStatusMode(dev);
     const tel = dev.lastTelemetry || {};
-    const speed = tel.speed || 0;
-    const isIgnOn = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1 || Number(tel.engineRpm) > 300 || Number(tel.speed) > 3;
+    const speed = isOnline ? (tel.speed || 0) : 0;
+    const isIgnOn = isOnline && (tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1 || Number(tel.engineRpm) > 300 || Number(tel.speed) > 3);
     const isSelected = dev.imei === currentDeviceImei;
 
     const statusModeLower = mode === 'MOVING' ? 'moving' : (mode === 'IDLE' ? 'idle' : (mode === 'PARKED' ? 'parking' : 'nodata'));
@@ -164,6 +165,7 @@ function renderVehicleCards() {
       : ((fuelPct / 100) * (dev.tankCapacity || 480)).toFixed(1);
 
     const speedDisplay = mode === 'MOVING' ? `MOVING ${speed} km/h` : mode;
+    const displayRpm = isOnline ? (tel.engineRpm || 0) : 0;
 
     return `
       <div class="traxen-vehicle-card ${isSelected ? 'selected' : ''}" onclick="App.selectDevice('${dev.imei}')">
@@ -188,7 +190,7 @@ function renderVehicleCards() {
         <div class="ignition-row">
           <div class="ignition-pill">
             <div class="ignition-led ${isIgnOn ? 'on' : 'off'}"></div>
-            <span style="color: ${isIgnOn ? 'var(--status-moving)' : 'var(--text-muted)'};">${isIgnOn ? 'IGNITION ON' : 'IGNITION OFF'}</span>
+            <span style="color: ${isIgnOn ? 'var(--status-moving)' : 'var(--text-muted)'};">${isIgnOn ? 'IGNITION ON' : (isOnline ? 'IGNITION OFF' : 'DEVICE OFFLINE')}</span>
           </div>
           <span style="font-family: var(--font-mono); color: var(--traxen-amber); font-size: 0.75rem;">IMEI: ${dev.imei.slice(-6)}</span>
         </div>
@@ -208,7 +210,7 @@ function renderVehicleCards() {
         <div class="card-metrics-grid">
           <div class="card-metric-box">
             <div class="card-metric-label">RPM</div>
-            <div class="card-metric-val">${tel.engineRpm || 0}</div>
+            <div class="card-metric-val">${displayRpm}</div>
           </div>
           <div class="card-metric-box">
             <div class="card-metric-label">Coolant</div>
@@ -248,6 +250,8 @@ function selectDevice(imei) {
 
   renderVehicleCards();
 
+  const isOnline = (dev.status === 'ONLINE' && dev.isSocketConnected !== false);
+
   // Update CAN tab dropdown & labels
   const canSelect = document.getElementById('canDeviceSelect');
   if (canSelect && canSelect.value !== imei) canSelect.value = imei;
@@ -255,7 +259,14 @@ function selectDevice(imei) {
   const canPlate = document.getElementById('canSelectedPlate');
   const canModel = document.getElementById('canSelectedModel');
   if (canPlate) canPlate.innerText = `${dev.vehicleNumber} (${dev.category || 'Vehicle'})`;
-  if (canModel) canModel.innerText = `${dev.model} • IMEI: ${dev.imei}`;
+  if (canModel) {
+    if (isOnline) {
+      canModel.innerHTML = `<span style="color: var(--status-moving);">🟢 LIVE CAN BUS (Codec 8 Extended)</span> • IMEI: ${dev.imei}`;
+    } else {
+      const lastSeenStr = dev.lastUpdated ? new Date(dev.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently';
+      canModel.innerHTML = `<span style="color: var(--text-muted);">⚪ OFFLINE (Last Recorded CAN Snapshot • ${lastSeenStr})</span> • IMEI: ${dev.imei}`;
+    }
+  }
 
   // Update Fuel Source Badge
   const sourceBadge = document.getElementById('fuelSourceBadge');
@@ -293,12 +304,12 @@ function selectDevice(imei) {
         dev.lastTelemetry.lat || 11.6643,
         dev.lastTelemetry.lng || 78.1460,
         dev.lastTelemetry.angle || 0,
-        dev.lastTelemetry.speed || 0,
+        isOnline ? (dev.lastTelemetry.speed || 0) : 0,
         dev.category || 'OPEN TRUCK'
       );
     }
     if (window.GaugesController) {
-      window.GaugesController.updateGauges(dev.lastTelemetry, dev.tankCapacity);
+      window.GaugesController.updateGauges(dev.lastTelemetry, dev.tankCapacity, isOnline);
     }
   }
 
@@ -470,6 +481,8 @@ function handleWebSocketMessage(msg) {
     if (dev) {
       dev.lastTelemetry = data;
       dev.status = 'ONLINE';
+      dev.isSocketConnected = true;
+      dev.lastUpdated = new Date().toISOString();
     } else {
       // Auto-add new live device if not present
       loadDevices();
@@ -482,7 +495,7 @@ function handleWebSocketMessage(msg) {
         window.MapController.updateVehicleLocation(data.lat, data.lng, data.angle, data.speed, dev ? dev.category : 'CAR');
       }
       if (window.GaugesController) {
-        window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 50);
+        window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 50, true);
       }
     }
   } else if (msg.event === 'device_status') {
@@ -490,8 +503,13 @@ function handleWebSocketMessage(msg) {
     const dev = allDevices.find(d => d.imei === imei);
     if (dev) {
       dev.status = status;
+      if (status === 'OFFLINE') dev.isSocketConnected = false;
       updateFleetCounters();
       renderVehicleCards();
+
+      if (imei === currentDeviceImei) {
+        selectDevice(imei);
+      }
     }
   } else if (msg.event === 'alert') {
     showAlertBanner(msg.data);
