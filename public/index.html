@@ -92,6 +92,29 @@
          ------------------------------------------------------------------------- -->
     <div id="tabMap" class="tab-pane">
       <div class="map-view-layout">
+        <!-- Floating Google Maps Layer & Tool Bar -->
+        <div class="map-floating-toolbar">
+          <div class="map-controls-group">
+            <button id="btnMapDark" class="map-btn-control active" onclick="MapController.setMapType('dark')" title="Cyber Dark Theme">
+              <span>🌙</span> Dark
+            </button>
+            <button id="btnMapSatellite" class="map-btn-control" onclick="MapController.setMapType('satellite')" title="High-Res Satellite Hybrid">
+              <span>🛰️</span> Satellite
+            </button>
+            <button id="btnMapRoadmap" class="map-btn-control" onclick="MapController.setMapType('roadmap')" title="Google Roadmap">
+              <span>🛣️</span> Road
+            </button>
+          </div>
+          <div class="map-controls-group">
+            <button id="btnMapTraffic" class="map-btn-control" onclick="MapController.toggleTraffic()" title="Live Google Traffic Overlay">
+              <span>🚦</span> Traffic
+            </button>
+            <button class="map-btn-control highlight" onclick="MapController.recenterMap()" title="Center on Vehicle">
+              <span>📍</span> Center
+            </button>
+          </div>
+        </div>
+
         <div id="leafletMap"></div>
 
         <!-- Slide-up Bottom Vehicle Drawer -->
@@ -696,7 +719,10 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Google Maps JavaScript API with Geometry & Places Libraries -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAiYpItT9edN1wOWsT78ogECLCa6-g3zRU&libraries=geometry,places"></script>
+
+  <!-- Leaflet Fallback JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
   <!-- Traxen App JS Modules -->

@@ -29,7 +29,7 @@ function switchTab(tabId) {
 
   if (tabId === 'tabMap' && window.MapController) {
     setTimeout(() => {
-      if (window.map) window.map.invalidateSize();
+      window.MapController.recenterMap();
     }, 150);
   }
 }
