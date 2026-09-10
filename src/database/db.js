@@ -271,18 +271,28 @@ const Database = {
     }
 
     const rawTel = record.telemetry || {};
-    const telemetry = normalizeTelemetry(rawTel, record.rawIos, calculatedLiters, mileageMetrics, record.gps || {});
+    const deviceTimeIso = record.timestamp 
+      ? (record.timestamp instanceof Date ? record.timestamp.toISOString() : new Date(record.timestamp).toISOString()) 
+      : new Date().toISOString();
+    const serverTimeIso = new Date().toISOString();
+
+    const telemetry = {
+      ...normalizeTelemetry(rawTel, record.rawIos, calculatedLiters, mileageMetrics, record.gps || {}),
+      deviceTimestamp: deviceTimeIso,
+      serverTimestamp: serverTimeIso
+    };
 
     // Update Device State
     device.status = 'ONLINE';
-    device.lastUpdated = new Date().toISOString();
+    device.lastUpdated = serverTimeIso;
     device.lastTelemetry = telemetry;
     db.devices.set(imei, device);
 
     // Append to Position History
     const historyItem = {
       imei,
-      timestamp: record.timestamp ? record.timestamp.toISOString() : new Date().toISOString(),
+      timestamp: deviceTimeIso,
+      serverTimestamp: serverTimeIso,
       ...telemetry
     };
     db.positions.push(historyItem);

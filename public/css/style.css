@@ -144,7 +144,93 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+/* Header Live Clock Pills */
+.header-live-clocks {
+  display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.live-clock-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  color: #FFFFFF;
+}
+
+.live-clock-pill.server {
+  border-color: rgba(0, 230, 118, 0.4);
+}
+
+.live-clock-pill.device {
+  border-color: rgba(0, 229, 255, 0.4);
+}
+
+.live-clock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.live-clock-dot.pulse-server {
+  background: #00E676;
+  box-shadow: 0 0 8px #00E676;
+  animation: pulseGreen 1.5s infinite;
+}
+
+.live-clock-dot.pulse-device {
+  background: #00E5FF;
+  box-shadow: 0 0 8px #00E5FF;
+  animation: pulseCyan 1.5s infinite;
+}
+
+@keyframes pulseGreen {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+@keyframes pulseCyan {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.live-clock-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.5px;
+}
+
+.live-clock-time {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #FFFFFF;
+}
+
+.live-clock-age {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 229, 255, 0.18);
+  color: #00E5FF;
+  margin-left: 2px;
+}
+
+.sync-card {
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  background: linear-gradient(135deg, rgba(14, 21, 36, 0.95), rgba(10, 30, 50, 0.85)) !important;
+  box-shadow: 0 8px 30px rgba(0, 229, 255, 0.1) !important;
 }
 
 .btn-header-add {

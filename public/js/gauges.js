@@ -177,6 +177,12 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
   setCanVal('canTowing', telemetry.towingAlert ? 'TOWING DETECTED 🚨' : 'Normal 🟢', telemetry.towingAlert ? 'inactive' : 'active');
   setCanVal('canVin', telemetry.vinChassis || 'Auto-Detected');
 
+  // 8. Live Clock & Sync Cluster
+  const satsCount = telemetry.satellites || 0;
+  setCanVal('syncSatLock', satsCount >= 4 ? `${satsCount} Sats Locked 🟢` : (satsCount > 0 ? `${satsCount} Sats (Searching 🟡)` : '0 Sats ⚪'), satsCount >= 4 ? 'active' : 'inactive');
+  setCanVal('syncProtocol', telemetry.lvcanAdapterId ? 'Teltonika Codec 8 Extended (CAN Direct)' : 'Teltonika Codec 8 Extended');
+  setCanVal('syncWsStatus', isOnline ? 'WebSocket Broadcast (Port 3001) 🟢' : 'WebSocket Broadcast (Standby ⚪)', isOnline ? 'active' : 'inactive');
+
   // 8. Update Map Slide-up Drawer
   const drawerSpeed = document.getElementById('drawerSpeed');
   const drawerFuel = document.getElementById('drawerFuel');

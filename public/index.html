@@ -27,6 +27,21 @@
       </div>
 
       <div class="header-actions">
+        <!-- Live Server & Device Clock Hub -->
+        <div class="header-live-clocks">
+          <div class="live-clock-pill server" title="Current Server Clock (IST)">
+            <span class="live-clock-dot pulse-server"></span>
+            <span class="live-clock-tag">SERVER</span>
+            <span id="liveServerTimeTop" class="live-clock-time">--:--:--</span>
+          </div>
+          <div class="live-clock-pill device" title="Device Last GPS / RTC Report Time">
+            <span class="live-clock-dot pulse-device"></span>
+            <span class="live-clock-tag">DEVICE RTC</span>
+            <span id="liveDeviceTimeTop" class="live-clock-time">--:--:--</span>
+            <span id="livePacketAgeTop" class="live-clock-age">--</span>
+          </div>
+        </div>
+
         <div id="wsConnectionBadge" class="ws-status-badge online" title="Real-time WebSocket Live Stream Active">
           <span class="ws-pulse-dot"></span>
           <span id="wsStatusText">WS Live ⚡</span>
@@ -169,6 +184,39 @@
       </div>
 
       <div class="can-clusters-grid">
+
+        <!-- 0. Live Clock & Telemetry Synchronization Hub -->
+        <div class="can-cluster-card sync-card">
+          <div class="cluster-title" style="color: var(--traxen-primary-light);">
+            <span>⏱️</span> Live Clock & Packet Synchronization
+          </div>
+          <div class="cluster-items-list">
+            <div class="can-item-row">
+              <span class="can-item-label">🖥️ Server Time (Live IST)</span>
+              <span id="syncServerTime" class="can-item-val highlight">--:--:--</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">📡 Device GPS RTC Timestamp</span>
+              <span id="syncDeviceTime" class="can-item-val active">--:--:--</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">⚡ Packet Age / Latency Lag</span>
+              <span id="syncPacketAge" class="can-item-val highlight">--</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">🛰️ GNSS Atomic Satellite Lock</span>
+              <span id="syncSatLock" class="can-item-val active">14 Sats Locked 🟢</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">📶 Telematics Protocol</span>
+              <span id="syncProtocol" class="can-item-val">Teltonika Codec 8 Extended</span>
+            </div>
+            <div class="can-item-row">
+              <span class="can-item-label">🔄 Live Stream Channel</span>
+              <span id="syncWsStatus" class="can-item-val active">WebSocket Broadcast (Port 3001)</span>
+            </div>
+          </div>
+        </div>
 
         <!-- 1. Engine & Powertrain CAN -->
         <div class="can-cluster-card">

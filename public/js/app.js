@@ -11,10 +11,96 @@ let searchQuery = '';
 let selectedNewVehicleCategory = 'OPEN TRUCK';
 let ws = null;
 
+let clockTickerInterval = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   initWebSocket();
   loadDevices();
+  initLiveClocks();
 });
+
+// Live Real-Time Clock & Telemetry Sync Ticker
+function initLiveClocks() {
+  if (clockTickerInterval) clearInterval(clockTickerInterval);
+
+  function tick() {
+    const now = new Date();
+    // 1. Format Server Time in IST (Indian Standard Time)
+    const serverTimeStr = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+
+    const elServerTop = document.getElementById('liveServerTimeTop');
+    const elServerSync = document.getElementById('syncServerTime');
+    if (elServerTop) elServerTop.innerText = serverTimeStr;
+    if (elServerSync) elServerSync.innerText = `${serverTimeStr} IST`;
+
+    // 2. Format Selected Device GPS RTC Time & Age
+    const dev = allDevices.find(d => d.imei === currentDeviceImei);
+    const elDeviceTop = document.getElementById('liveDeviceTimeTop');
+    const elAgeTop = document.getElementById('livePacketAgeTop');
+    const elDeviceSync = document.getElementById('syncDeviceTime');
+    const elAgeSync = document.getElementById('syncPacketAge');
+
+    if (dev && dev.lastTelemetry) {
+      const devTimestamp = dev.lastTelemetry.deviceTimestamp || dev.lastTelemetry.timestamp || dev.lastUpdated;
+      if (devTimestamp) {
+        const devDate = new Date(devTimestamp);
+        const devTimeStr = !isNaN(devDate.getTime()) ? devDate.toLocaleTimeString('en-IN', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        }) : '--:--:--';
+
+        if (elDeviceTop) elDeviceTop.innerText = devTimeStr;
+        if (elDeviceSync) elDeviceSync.innerText = `${devTimeStr} (GPS Atomic)`;
+
+        // Calculate packet age in seconds
+        const ageSec = Math.max(0, Math.floor((now.getTime() - devDate.getTime()) / 1000));
+        let ageLabel = 'Just now';
+        let ageClass = 'active';
+
+        if (ageSec < 5) {
+          ageLabel = '⚡ Just now';
+          ageClass = 'active';
+        } else if (ageSec < 60) {
+          ageLabel = `⚡ ${ageSec}s ago`;
+          ageClass = 'active';
+        } else if (ageSec < 3600) {
+          const m = Math.floor(ageSec / 60);
+          const s = ageSec % 60;
+          ageLabel = `⏱️ ${m}m ${s}s ago`;
+          ageClass = 'highlight';
+        } else {
+          const h = Math.floor(ageSec / 3600);
+          ageLabel = `⚪ ${h}h ago`;
+          ageClass = 'inactive';
+        }
+
+        if (elAgeTop) {
+          elAgeTop.innerText = ageLabel;
+          elAgeTop.className = `live-clock-age ${ageClass}`;
+        }
+        if (elAgeSync) {
+          elAgeSync.innerText = ageLabel;
+          elAgeSync.className = `can-item-val ${ageClass}`;
+        }
+      }
+    } else {
+      if (elDeviceTop) elDeviceTop.innerText = '--:--:--';
+      if (elAgeTop) elAgeTop.innerText = 'No Data';
+      if (elDeviceSync) elDeviceSync.innerText = '--:--:--';
+      if (elAgeSync) elAgeSync.innerText = '--';
+    }
+  }
+
+  tick();
+  clockTickerInterval = setInterval(tick, 1000);
+}
 
 // Switch Tab (Bottom Navigation & Desktop Tabs)
 function switchTab(tabId) {
