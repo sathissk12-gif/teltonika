@@ -175,7 +175,14 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
   setCanVal('canGsm', telemetry.gsmSignal ? `${telemetry.gsmSignal} CSQ` : '-- CSQ');
   setCanVal('canTamper', telemetry.unplugAlert ? 'POWER TAMPER 🚨' : 'Secure 🟢', telemetry.unplugAlert ? 'inactive' : 'active');
   setCanVal('canTowing', telemetry.towingAlert ? 'TOWING DETECTED 🚨' : 'Normal 🟢', telemetry.towingAlert ? 'inactive' : 'active');
-  setCanVal('canVin', telemetry.vinChassis || 'Auto-Detected');
+  
+  const rawVin = telemetry.vinChassis || (telemetry.rawIos && telemetry.rawIos[107]);
+  const formattedVin = (rawVin && String(rawVin).length >= 10) 
+    ? String(rawVin) 
+    : (window.allDevices && window.currentDeviceImei 
+        ? `CAN-VIN-${(window.allDevices.find(d => d.imei === window.currentDeviceImei)?.vehicleNumber || window.currentDeviceImei.slice(-6))}`
+        : 'Auto-Detecting CAN...');
+  setCanVal('canVin', formattedVin);
 
   // 8. Live Clock & Sync Cluster
   const satsCount = telemetry.satellites || 0;
