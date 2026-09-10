@@ -918,6 +918,127 @@ const Database = {
   },
 
   // -------------------------------------------------------------
+  // Fuel Intelligence: Refuel (Fill) & Sudden Drop (Theft) Analysis
+  // -------------------------------------------------------------
+  getFuelEvents(imei, { from = null, to = null, minFillLiters = 5.0, minDrainLiters = 4.0 } = {}) {
+    const fromTime = from ? new Date(from).toISOString() : new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
+    const toTime = to ? new Date(to).toISOString() : new Date().toISOString();
+
+    const fillThreshold = parseFloat(minFillLiters) || 5.0;
+    const drainThreshold = parseFloat(minDrainLiters) || 4.0;
+
+    try {
+      const rows = sqliteDb.prepare(`
+        SELECT 
+          timestamp, latitude, longitude, speed, ignition,
+          fuel_percentage, fuel_liters, total_mileage_can, odometer
+        FROM can_telemetry_history
+        WHERE imei = ? AND timestamp >= ? AND timestamp <= ? AND fuel_percentage IS NOT NULL
+        ORDER BY timestamp ASC
+      `).all(imei, fromTime, toTime);
+
+      if (rows.length < 2) {
+        return {
+          imei,
+          from: fromTime,
+          to: toTime,
+          totalRefueledLiters: 0,
+          totalRefuelCount: 0,
+          totalDrainedOrStolenLiters: 0,
+          totalTheftCount: 0,
+          events: []
+        };
+      }
+
+      const events = [];
+      let totalRefueledLiters = 0;
+      let totalDrainedLiters = 0;
+
+      let baseline = rows[0];
+
+      for (let i = 1; i < rows.length; i++) {
+        const current = rows[i];
+        const currentTime = new Date(current.timestamp).getTime();
+        const baseTime = new Date(baseline.timestamp).getTime();
+        const elapsedMinutes = (currentTime - baseTime) / 60000;
+
+        const currentLiters = current.fuel_liters !== null ? current.fuel_liters : (current.fuel_percentage * 4.8);
+        const baseLiters = baseline.fuel_liters !== null ? baseline.fuel_liters : (baseline.fuel_percentage * 4.8);
+        const diffLiters = currentLiters - baseLiters;
+
+        // 1. REFUEL DETECTION: Positive fuel jump >= fillThreshold in <= 30 mins
+        if (diffLiters >= fillThreshold && elapsedMinutes <= 30) {
+          const added = parseFloat(diffLiters.toFixed(1));
+          totalRefueledLiters += added;
+          events.push({
+            type: 'REFUEL',
+            severity: 'INFO',
+            title: `Fuel Refill (+${added} L)`,
+            message: `Refueled +${added} Liters from ${baseLiters.toFixed(1)}L (${baseline.fuel_percentage}%) to ${currentLiters.toFixed(1)}L (${current.fuel_percentage}%)`,
+            addedLiters: added,
+            startLiters: parseFloat(baseLiters.toFixed(1)),
+            endLiters: parseFloat(currentLiters.toFixed(1)),
+            startPct: baseline.fuel_percentage,
+            endPct: current.fuel_percentage,
+            timestamp: current.timestamp,
+            lat: current.latitude,
+            lng: current.longitude,
+            speed: current.speed,
+            ignition: Boolean(current.ignition)
+          });
+          baseline = current;
+          continue;
+        }
+
+        // 2. SUDDEN DECREASE / THEFT DETECTION: Negative drop >= drainThreshold while Ignition OFF, or impossible rapid drain (>50 L/h)
+        const isIgnitionOff = !current.ignition || current.ignition === 0;
+        if (diffLiters <= -drainThreshold && (isIgnitionOff || elapsedMinutes <= 5)) {
+          const lost = parseFloat(Math.abs(diffLiters).toFixed(1));
+          totalDrainedLiters += lost;
+          events.push({
+            type: 'FUEL_THEFT_OR_DRAIN',
+            severity: 'CRITICAL',
+            title: `⚠️ Sudden Fuel Drop (-${lost} L)`,
+            message: `Critical fuel drop of ${lost} Liters detected ${isIgnitionOff ? 'while ignition is OFF' : 'rapidly'}! (${baseLiters.toFixed(1)}L ➔ ${currentLiters.toFixed(1)}L)`,
+            lostLiters: lost,
+            theftType: isIgnitionOff ? 'IGNITION_OFF_SIPHON' : 'ABNORMAL_RAPID_DRAIN',
+            startLiters: parseFloat(baseLiters.toFixed(1)),
+            endLiters: parseFloat(currentLiters.toFixed(1)),
+            startPct: baseline.fuel_percentage,
+            endPct: current.fuel_percentage,
+            timestamp: current.timestamp,
+            lat: current.latitude,
+            lng: current.longitude,
+            speed: current.speed,
+            ignition: Boolean(current.ignition)
+          });
+          baseline = current;
+          continue;
+        }
+
+        // Shift baseline if window exceeds 15 minutes without sudden event
+        if (elapsedMinutes > 15) {
+          baseline = current;
+        }
+      }
+
+      return {
+        imei,
+        from: fromTime,
+        to: toTime,
+        totalRefueledLiters: parseFloat(totalRefueledLiters.toFixed(1)),
+        totalRefuelCount: events.filter(e => e.type === 'REFUEL').length,
+        totalDrainedOrStolenLiters: parseFloat(totalDrainedLiters.toFixed(1)),
+        totalTheftCount: events.filter(e => e.type === 'FUEL_THEFT_OR_DRAIN').length,
+        events: events.reverse() // Most recent first
+      };
+    } catch (err) {
+      console.error('[DB] Error computing fuel events:', err.message);
+      return { imei, error: err.message, events: [] };
+    }
+  },
+
+  // -------------------------------------------------------------
   // 3. VEHICLE / FLEET MANAGEMENT
   // -------------------------------------------------------------
   getDevice(imeiOrId) {

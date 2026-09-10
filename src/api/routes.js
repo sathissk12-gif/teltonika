@@ -447,6 +447,21 @@ module.exports = (tcpServer, wsBroadcaster) => {
     }
   });
 
+  router.get('/devices/:imei/fuel-events', (req, res) => {
+    try {
+      const { from, to, minFillLiters, minDrainLiters } = req.query;
+      const events = Database.getFuelEvents(req.params.imei, {
+        from: from || null,
+        to: to || null,
+        minFillLiters: minFillLiters ? parseFloat(minFillLiters) : 5.0,
+        minDrainLiters: minDrainLiters ? parseFloat(minDrainLiters) : 4.0
+      });
+      res.json({ success: true, data: events });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   router.get('/devices/:imei/playback', (req, res) => {
     try {
       const { from, to, limit } = req.query;
