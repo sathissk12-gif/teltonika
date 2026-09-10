@@ -7,12 +7,19 @@ function updateGauges(telemetry, tankCapacity = 480) {
   if (!telemetry) return;
 
   // 1. Fuel Calculations
-  const fuelPct = telemetry.fuelPercentage !== null && telemetry.fuelPercentage !== undefined 
-    ? telemetry.fuelPercentage 
-    : 0;
-  const fuelLiters = telemetry.fuelLiters !== null && telemetry.fuelLiters !== undefined 
-    ? telemetry.fuelLiters 
-    : ((fuelPct / 100) * tankCapacity).toFixed(1);
+  let fuelLiters = '0.0';
+  let fuelPct = 0;
+
+  if (telemetry.fuelLevelLiters !== undefined && telemetry.fuelLevelLiters !== null && telemetry.fuelLevelLiters > 0) {
+    fuelLiters = parseFloat(telemetry.fuelLevelLiters).toFixed(1);
+    fuelPct = Math.min(100, Math.max(0, Math.round((parseFloat(fuelLiters) / (tankCapacity || 50)) * 100)));
+  } else if (telemetry.fuelLiters !== null && telemetry.fuelLiters !== undefined && telemetry.fuelLiters > 0) {
+    fuelLiters = parseFloat(telemetry.fuelLiters).toFixed(1);
+    fuelPct = telemetry.fuelPercentage || Math.round((parseFloat(fuelLiters) / (tankCapacity || 50)) * 100);
+  } else if (telemetry.fuelPercentage !== null && telemetry.fuelPercentage !== undefined && telemetry.fuelPercentage > 0) {
+    fuelPct = telemetry.fuelPercentage;
+    fuelLiters = ((fuelPct / 100) * (tankCapacity || 50)).toFixed(1);
+  }
 
   // Liquid Tank Graphic
   const tankLiquid = document.getElementById('tankLiquid');
@@ -28,8 +35,8 @@ function updateGauges(telemetry, tankCapacity = 480) {
   if (fuelLitersElem) fuelLitersElem.innerText = `${fuelLiters} L`;
   if (fuelPctElem) fuelPctElem.innerText = `${fuelPct}% Full`;
   if (fuelRangeElem) {
-    const estRange = (parseFloat(fuelLiters) * 3.8).toFixed(0);
-    fuelRangeElem.innerText = `~${estRange} km`;
+    const estRange = telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : `~${(parseFloat(fuelLiters) * 3.8).toFixed(0)} km`;
+    fuelRangeElem.innerText = estRange;
   }
 
   // 2. Engine & Powertrain CAN Cluster
