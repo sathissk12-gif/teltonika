@@ -152,7 +152,7 @@ function renderVehicleCards() {
     const mode = getVehicleStatusMode(dev);
     const tel = dev.lastTelemetry || {};
     const speed = tel.speed || 0;
-    const isIgnOn = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1;
+    const isIgnOn = tel.ignition === true || tel.ignition === 'ON' || tel.ignition === 1 || Number(tel.engineRpm) > 300 || Number(tel.speed) > 3;
     const isSelected = dev.imei === currentDeviceImei;
 
     const statusModeLower = mode === 'MOVING' ? 'moving' : (mode === 'IDLE' ? 'idle' : (mode === 'PARKED' ? 'parking' : 'nodata'));

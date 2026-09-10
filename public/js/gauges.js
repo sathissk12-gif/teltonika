@@ -120,7 +120,7 @@ function updateGauges(telemetry, tankCapacity = 480) {
   setCanVal('mileageRangeVal', estRange);
 
   // 4. Electrical, Body & Comfort CAN Cluster
-  const isIgnOn = telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1;
+  const isIgnOn = telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1 || Number(telemetry.engineRpm) > 300 || Number(telemetry.speed) > 3;
   setCanVal('canIgnition', isIgnOn ? 'IGNITION ON 🟢' : 'IGNITION OFF', isIgnOn ? 'active' : 'inactive');
   setCanVal('canExtVolt', (telemetry.externalVoltage !== undefined && telemetry.externalVoltage !== null && telemetry.externalVoltage > 0) ? `${parseFloat(telemetry.externalVoltage).toFixed(1)} V` : '-- V');
   setCanVal('canIntVolt', (telemetry.batteryVoltage !== undefined && telemetry.batteryVoltage !== null && telemetry.batteryVoltage > 0) ? `${parseFloat(telemetry.batteryVoltage).toFixed(2)} V` : '-- V');

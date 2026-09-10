@@ -92,13 +92,22 @@ function normalizeTelemetry(rawTel = {}, rawIos = {}, calculatedLiters = null, m
     batteryVoltage = parseFloat((Number(ios[67]) * 0.001).toFixed(2));
   }
 
-  // Resolve Ignition (IO 239 / IO 1)
-  let ignition = rawTel.ignition;
-  if (ignition === undefined) {
-    if (ios[239] !== undefined) ignition = Number(ios[239]) === 1;
-    else if (ios[1] !== undefined) ignition = Number(ios[1]) === 1;
-    else if (rawTel.DIN1 !== undefined) ignition = Boolean(rawTel.DIN1);
-    else ignition = (gps.speed > 0);
+  // Resolve Ignition (Smart Multi-Source CAN & Hardware Arbitration)
+  let ignition = false;
+  if (Number(engineRpm) > 300) {
+    // Engine is physically running and rotating - 100% Ignition ON
+    ignition = true;
+  } else if (ios[239] !== undefined) {
+    ignition = Number(ios[239]) === 1;
+  } else if (ios[1] !== undefined) {
+    ignition = Number(ios[1]) === 1;
+  } else if (rawTel.DIN1 !== undefined) {
+    ignition = Boolean(rawTel.DIN1);
+  } else if (externalVoltage >= 13.5) {
+    // Alternator actively charging
+    ignition = true;
+  } else {
+    ignition = (gps.speed > 3);
   }
 
   // Resolve GSM Signal (IO 21)
