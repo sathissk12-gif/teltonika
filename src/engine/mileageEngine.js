@@ -224,11 +224,11 @@ class MileageEngine {
     // 8. Cost Per Kilometer (₹/km)
     const costPerKm = avgKmPerLiter > 0 ? parseFloat((this.fuelPricePerLiter / avgKmPerLiter).toFixed(2)) : 0;
 
-    // 9. Estimated Remaining Driving Range (km)
-    let estimatedRangeKm = telemetry.vehicleRange || 0;
-    if (!estimatedRangeKm || estimatedRangeKm === 0) {
-      estimatedRangeKm = Math.round(currentFuel * avgKmPerLiter);
-    }
+    // 9. Estimated Remaining Driving Range (Dynamic DTE based on Remaining Fuel & Avg Mileage)
+    const dynamicRangeKm = (currentFuel > 0 && avgKmPerLiter > 0) 
+      ? Math.round(currentFuel * avgKmPerLiter) 
+      : (telemetry.vehicleRange || 0);
+    const estimatedRangeKm = dynamicRangeKm;
 
     // 10. Idle Fuel Waste (Liters)
     const idleWasteLiters = parseFloat(((trip.idleSeconds / 3600) * 0.8).toFixed(2));

@@ -101,8 +101,10 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
     setCanVal('canFuelRate', '0.00 L/h');
   }
 
-  setCanVal('canTotalMileage', (telemetry.totalMileageCan !== undefined && telemetry.totalMileageCan !== null) ? `${parseFloat(telemetry.totalMileageCan).toLocaleString()} km` : (telemetry.odometer ? `${parseFloat(telemetry.odometer).toLocaleString()} km` : '-- km'));
-  setCanVal('canVehicleRange', telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : '-- km');
+  const dynamicRange = (telemetry.fuelLiters > 0 && (telemetry.avgMileage || telemetry.avgMileageKmPerLiter))
+    ? Math.round(telemetry.fuelLiters * (telemetry.avgMileage || telemetry.avgMileageKmPerLiter))
+    : (telemetry.estimatedRangeKm || telemetry.vehicleRange || null);
+  setCanVal('canVehicleRange', dynamicRange ? `${dynamicRange} km` : (telemetry.vehicleRange ? `${telemetry.vehicleRange} km` : '-- km'));
   setCanVal('canAdBlue', telemetry.adBlueLevel !== null && telemetry.adBlueLevel !== undefined ? `${telemetry.adBlueLevel} %` : '-- %');
   
   const svcRaw = Number(telemetry.nextServiceDistance);
