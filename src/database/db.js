@@ -1209,46 +1209,7 @@ const Database = {
         }
       }
 
-      // If no discrete trips found in DB history, generate realistic Tamil Nadu demo trips for user visibility
-      if (trips.length === 0) {
-        const now = Date.now();
-        const demoTripsData = [
-          { dist: 84.6, fuel: 5.49, duration: 95, avgSpd: 54, maxSpd: 82, idle: 6, hrsAgo: 3, route: 'Salem ➔ Erode' },
-          { dist: 52.3, fuel: 3.37, duration: 62, avgSpd: 51, maxSpd: 78, idle: 4, hrsAgo: 14, route: 'Erode ➔ Tiruppur' },
-          { dist: 128.0, fuel: 8.31, duration: 142, avgSpd: 55, maxSpd: 88, idle: 12, hrsAgo: 28, route: 'Tiruppur ➔ Coimbatore' },
-          { dist: 46.2, fuel: 3.02, duration: 52, avgSpd: 53, maxSpd: 76, idle: 3, hrsAgo: 48, route: 'Coimbatore ➔ Pollachi' },
-          { dist: 165.4, fuel: 10.74, duration: 185, avgSpd: 56, maxSpd: 92, idle: 15, hrsAgo: 72, route: 'Salem ➔ Bengaluru Highway' }
-        ];
-
-        demoTripsData.forEach((dt, idx) => {
-          const sTime = new Date(now - (dt.hrsAgo * 3600 * 1000) - (dt.duration * 60 * 1000)).toISOString();
-          const eTime = new Date(now - (dt.hrsAgo * 3600 * 1000)).toISOString();
-          const mileage = parseFloat((dt.dist / dt.fuel).toFixed(2));
-          const fuelPerKm = parseFloat((dt.fuel / dt.dist).toFixed(3)); // L/km
-          const costTotal = parseFloat((dt.fuel * 102.50).toFixed(1));
-          const costPerKm = parseFloat((fuelPerKm * 102.50).toFixed(2));
-
-          trips.push({
-            id: `trip_demo_${idx + 1}`,
-            startTime: sTime,
-            endTime: eTime,
-            durationMinutes: dt.duration,
-            distanceKm: dt.dist,
-            fuelConsumedLiters: dt.fuel,
-            mileageKmPerLiter: mileage,
-            fuelPerKm: fuelPerKm, // L/km
-            costTotal,
-            costPerKm,
-            avgSpeed: dt.avgSpd,
-            maxSpeed: dt.maxSpd,
-            idleMinutes: dt.idle,
-            routeName: dt.route,
-            startLocation: { lat: 11.6643, lng: 78.1460 },
-            endLocation: { lat: 11.3410, lng: 77.7172 }
-          });
-        });
-      }
-
+      // Return real trips from SQLite history (Empty array if no completed trips yet)
       return trips.slice(0, limit);
     } catch (err) {
       console.error('[DB] Error calculating trips:', err.message);
@@ -1257,7 +1218,235 @@ const Database = {
   },
 
   // -------------------------------------------------------------
-  // 3. VEHICLE / FLEET MANAGEMENT
+  // 3. DAILY FLEET & FUEL PERFORMANCE LEDGER (Per-Day Run, Fuel & Mileage)
+  // -------------------------------------------------------------
+  getDailySummaries(imei, days = 7) {
+    try {
+      const dailySummaries = [];
+      const now = new Date();
+
+      for (let d = 0; d < days; d++) {
+        const targetDate = new Date(now.getTime() - d * 24 * 3600 * 1000);
+        const yyyy = targetDate.getFullYear();
+        const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(targetDate.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        
+        const dayStart = `${dateStr}T00:00:00.000Z`;
+        const dayEnd = `${dateStr}T23:59:59.999Z`;
+
+        const rows = sqliteDb.prepare(`
+          SELECT 
+            timestamp, latitude, longitude, altitude, speed, angle, ignition,
+            fuel_percentage, fuel_liters, total_mileage_can, odometer, engine_rpm,
+            ecm_total_fuel_consumed
+          FROM can_telemetry_history
+          WHERE imei = ? AND timestamp >= ? AND timestamp <= ? AND is_valid = 1
+          ORDER BY timestamp ASC
+        `).all(imei, dayStart, dayEnd);
+
+        let distKm = 0;
+        let runningMins = 0;
+        let idleMins = 0;
+        let maxSpeed = 0;
+        let speedSum = 0;
+        let speedCount = 0;
+
+        if (rows.length >= 2) {
+          for (let i = 1; i < rows.length; i++) {
+            const p1 = rows[i - 1];
+            const p2 = rows[i];
+            const dtHours = Math.max(0.0001, (new Date(p2.timestamp) - new Date(p1.timestamp)) / 3600000);
+            const dtMins = dtHours * 60;
+
+            if (p2.speed > maxSpeed) maxSpeed = p2.speed;
+            if (p2.speed > 2) {
+              speedSum += p2.speed;
+              speedCount++;
+              if (dtMins < 30) runningMins += dtMins;
+            } else if (p2.ignition || p2.engine_rpm > 300) {
+              if (dtMins < 30) idleMins += dtMins;
+            }
+
+            if (p1.latitude && p1.longitude && p2.latitude && p2.longitude && (p1.latitude !== p2.latitude || p1.longitude !== p2.longitude)) {
+              const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
+              const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;
+              const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+              const stepDist = 6371.0 * c;
+              if (stepDist >= 0.003 && (stepDist / dtHours) < 180) {
+                distKm += stepDist;
+              }
+            } else if (p2.speed > 2 && dtHours < 0.05) {
+              distKm += p2.speed * dtHours;
+            }
+          }
+
+          // CAN Odometer Cross-Check
+          const startPt = rows[0];
+          const endPt = rows[rows.length - 1];
+          const startOdo = startPt.total_mileage_can || startPt.odometer || 0;
+          const endOdo = endPt.total_mileage_can || endPt.odometer || 0;
+          if (startOdo > 0 && endOdo > startOdo) {
+            const odoDiff = endOdo - startOdo;
+            if (odoDiff > 0 && odoDiff < 1500) {
+              if (distKm === 0 || Math.abs(odoDiff - distKm) / Math.max(0.1, distKm) < 0.35) {
+                distKm = Math.max(distKm, odoDiff);
+              }
+            }
+          }
+        }
+
+        distKm = parseFloat(distKm.toFixed(1));
+
+        // Fuel calculation for the day
+        let fuelUsed = 0;
+        if (rows.length >= 2) {
+          const startPt = rows[0];
+          const endPt = rows[rows.length - 1];
+          const startEcm = startPt.ecm_total_fuel_consumed;
+          const endEcm = endPt.ecm_total_fuel_consumed;
+
+          if (startEcm !== null && endEcm !== null && endEcm >= startEcm) {
+            fuelUsed = parseFloat((endEcm - startEcm).toFixed(2));
+          } else {
+            const startFuel = startPt.fuel_liters !== null ? startPt.fuel_liters : (startPt.fuel_percentage * 0.5);
+            const endFuel = endPt.fuel_liters !== null ? endPt.fuel_liters : (endPt.fuel_percentage * 0.5);
+            if (startFuel > endFuel && (startFuel - endFuel) <= (distKm * 0.4)) {
+              fuelUsed = parseFloat((startFuel - endFuel).toFixed(2));
+            } else if (distKm > 0) {
+              fuelUsed = parseFloat((distKm / 14.8).toFixed(2));
+            }
+          }
+        }
+
+        // If Today (d === 0), also synchronize with live active trip metrics from vehicle cache
+        if (d === 0) {
+          const dev = cache.devices.get(imei);
+          const liveTripDist = dev?.lastTelemetry?.tripDistanceKm || dev?.lastTelemetry?.tripDistance || 0;
+          if (Number(liveTripDist) > distKm) {
+            distKm = parseFloat(Number(liveTripDist).toFixed(1));
+          }
+          const liveTripFuel = dev?.lastTelemetry?.tripFuelConsumedLiters || dev?.lastTelemetry?.tripFuel || 0;
+          if (Number(liveTripFuel) > fuelUsed) {
+            fuelUsed = parseFloat(Number(liveTripFuel).toFixed(2));
+          }
+        }
+
+        fuelUsed = parseFloat(fuelUsed.toFixed(2));
+        const avgMileage = distKm > 0 && fuelUsed > 0 ? parseFloat((distKm / fuelUsed).toFixed(1)) : 0;
+        const fuelPerKm = distKm > 0 && fuelUsed > 0 ? parseFloat((fuelUsed / distKm).toFixed(3)) : (avgMileage > 0 ? parseFloat((1 / avgMileage).toFixed(3)) : 0);
+        const fuelCost = parseFloat((fuelUsed * 102.50).toFixed(1));
+        const costPerKm = distKm > 0 ? parseFloat((fuelCost / distKm).toFixed(2)) : 0;
+        const avgSpeed = speedCount > 0 ? Math.round(speedSum / speedCount) : 0;
+
+        let label = dateStr;
+        if (d === 0) label = 'Today';
+        else if (d === 1) label = 'Yesterday';
+        else {
+          const dateObj = new Date(targetDate);
+          label = dateObj.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
+        }
+
+        dailySummaries.push({
+          date: dateStr,
+          dayIndex: d,
+          label,
+          distanceKm: distKm,
+          fuelUsedLiters: fuelUsed,
+          mileageKmpl: avgMileage,
+          fuelPerKm: fuelPerKm, // Exact L/km
+          fuelCost: fuelCost,
+          costPerKm: costPerKm,
+          runningMinutes: Math.round(runningMins),
+          idleMinutes: Math.round(idleMins),
+          maxSpeed: Math.round(maxSpeed),
+          avgSpeed: avgSpeed,
+          packetCount: rows.length
+        });
+      }
+
+      return {
+        imei,
+        daysCount: days,
+        today: dailySummaries[0] || null,
+        yesterday: dailySummaries[1] || null,
+        summaries: dailySummaries
+      };
+    } catch (err) {
+      console.error('[DB] Error calculating daily summaries:', err.message);
+      return { imei, daysCount: days, today: null, yesterday: null, summaries: [] };
+    }
+  },
+
+  // -------------------------------------------------------------
+  // 4. PURGE SIMULATION / FAKE TEST DATA (Real-Data Fresh Reset)
+  // -------------------------------------------------------------
+  purgeSimulationData(imei = null) {
+    try {
+      if (imei) {
+        sqliteDb.prepare(`DELETE FROM can_telemetry_history WHERE imei = ?`).run(imei);
+        sqliteDb.prepare(`DELETE FROM trips WHERE imei = ?`).run(imei);
+        sqliteDb.prepare(`DELETE FROM alerts WHERE imei = ?`).run(imei);
+        if (cache.recentPositions.has(imei)) {
+          cache.recentPositions.set(imei, []);
+        }
+        const dev = cache.devices.get(imei);
+        if (dev) {
+          if (dev.lastTelemetry) {
+            dev.lastTelemetry.tripDistance = 0;
+            dev.lastTelemetry.tripDistanceKm = 0;
+            dev.lastTelemetry.tripFuel = 0;
+            dev.lastTelemetry.tripFuelConsumedLiters = 0;
+            dev.lastTelemetry.instantMileage = 0;
+            dev.lastTelemetry.avgMileage = 0;
+            dev.lastTelemetry.avgMileageKmPerLiter = 0;
+            dev.lastTelemetry.costPerKm = 0;
+            dev.lastTelemetry.fuelRateLitersPerHour = 0;
+            dev.lastTelemetry.speed = 0;
+            dev.lastTelemetry.engineRpm = 0;
+            dev.lastTelemetry.currentGear = 0;
+            dev.lastTelemetry.gearLabel = 'N';
+          }
+          preparedStmts.upsertDevice.run(imei, JSON.stringify(dev), dev.status || 'OFFLINE', new Date().toISOString());
+        }
+      } else {
+        sqliteDb.prepare(`DELETE FROM can_telemetry_history`).run();
+        sqliteDb.prepare(`DELETE FROM trips`).run();
+        sqliteDb.prepare(`DELETE FROM alerts`).run();
+        cache.recentPositions.clear();
+        cache.alerts = [];
+        cache.trips = [];
+        for (const [devImei, dev] of cache.devices.entries()) {
+          if (dev.lastTelemetry) {
+            dev.lastTelemetry.tripDistance = 0;
+            dev.lastTelemetry.tripDistanceKm = 0;
+            dev.lastTelemetry.tripFuel = 0;
+            dev.lastTelemetry.tripFuelConsumedLiters = 0;
+            dev.lastTelemetry.instantMileage = 0;
+            dev.lastTelemetry.avgMileage = 0;
+            dev.lastTelemetry.avgMileageKmPerLiter = 0;
+            dev.lastTelemetry.costPerKm = 0;
+            dev.lastTelemetry.fuelRateLitersPerHour = 0;
+            dev.lastTelemetry.speed = 0;
+            dev.lastTelemetry.engineRpm = 0;
+            dev.lastTelemetry.currentGear = 0;
+            dev.lastTelemetry.gearLabel = 'N';
+          }
+          preparedStmts.upsertDevice.run(devImei, JSON.stringify(dev), dev.status || 'OFFLINE', new Date().toISOString());
+        }
+      }
+      return { success: true, message: 'Simulation test history purged successfully.' };
+    } catch (err) {
+      console.error('[DB] Error purging simulation data:', err.message);
+      return { success: false, error: err.message };
+    }
+  },
+
+  // -------------------------------------------------------------
+  // 5. VEHICLE / FLEET MANAGEMENT
   // -------------------------------------------------------------
   getDevice(imeiOrId) {
     if (!imeiOrId) return null;

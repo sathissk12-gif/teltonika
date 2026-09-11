@@ -209,6 +209,16 @@ class TripEngine {
     const list = this.completedTrips.get(imei) || [];
     return list.slice(0, limit);
   }
+
+  resetTrips(imei) {
+    if (imei) {
+      this.activeTrips.delete(imei);
+      this.completedTrips.delete(imei);
+    } else {
+      this.activeTrips.clear();
+      this.completedTrips.clear();
+    }
+  }
 }
 
 module.exports = TripEngine;

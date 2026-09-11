@@ -382,6 +382,67 @@
           </div>
         </div>
 
+        <!-- 3B. Daily Fleet & Fuel Ledger (Per-Day Run, Fuel & Mileage) -->
+        <div class="can-cluster-card daily-ledger-card" style="border-color: rgba(56, 189, 248, 0.4); background: linear-gradient(180deg, rgba(56, 189, 248, 0.08), var(--bg-card));">
+          <div class="cluster-title" style="color: #38BDF8; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>📅</span> Daily Run & Fuel Mileage Ledger
+            </div>
+            <span id="dailyLedgerDateBadge" class="badge-pill" style="background: rgba(56, 189, 248, 0.2); color: #38BDF8; font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">Today Live</span>
+          </div>
+
+          <div class="cluster-items-list">
+            <!-- Today's Hero Summary Ribbon -->
+            <div class="daily-hero-strip">
+              <div class="daily-hero-item">
+                <span class="daily-hero-lbl">🛣️ Today Run</span>
+                <span id="dailyTodayKm" class="daily-hero-val" style="color: #fff;">0.0 <small style="font-size: 0.72rem; color: var(--text-muted);">km</small></span>
+              </div>
+              <div class="daily-hero-item">
+                <span class="daily-hero-lbl">⛽ Fuel Used</span>
+                <span id="dailyTodayFuel" class="daily-hero-val" style="color: var(--traxen-primary-light);">0.00 <small style="font-size: 0.72rem; color: var(--text-muted);">L</small></span>
+              </div>
+              <div class="daily-hero-item">
+                <span class="daily-hero-lbl">📈 Avg Mileage</span>
+                <span id="dailyTodayMileage" class="daily-hero-val" style="color: var(--status-moving);">0.0 <small style="font-size: 0.72rem; color: var(--text-muted);">km/L</small></span>
+              </div>
+              <div class="daily-hero-item highlight-box">
+                <span class="daily-hero-lbl" style="color: var(--traxen-amber-light);">💧 Fuel / KM</span>
+                <span id="dailyTodayFuelPerKm" class="daily-hero-val" style="color: var(--traxen-amber-light);">0.000 <small style="font-size: 0.72rem;">L/km</small></span>
+              </div>
+              <div class="daily-hero-item">
+                <span class="daily-hero-lbl">💰 Est. Cost</span>
+                <span id="dailyTodayCost" class="daily-hero-val" style="color: #38BDF8;">₹ 0.0</span>
+              </div>
+            </div>
+
+            <!-- Past 7-Day Performance Breakdown Table -->
+            <div style="margin-top: 10px; border-top: 1px solid var(--border-glass); padding-top: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">7-Day Daily Fleet Ledger</span>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">Real CAN & GPS Records</span>
+              </div>
+              <div class="daily-table-wrap">
+                <table class="daily-mini-table">
+                  <thead>
+                    <tr>
+                      <th>Day / Date</th>
+                      <th>KM Run</th>
+                      <th>Fuel Used</th>
+                      <th>Mileage</th>
+                      <th>Fuel / KM</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dailySummaryTableBody">
+                    <!-- Populated dynamically via App.renderDailySummaries() -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 4. Body, Electrical & Comfort CAN -->
         <div class="can-cluster-card">
           <div class="cluster-title">
@@ -1242,6 +1303,9 @@
         <button class="hist-sub-tab active" data-tab="playback" onclick="HistoryStudio.switchHistoryTab('playback')">
           <span>🗺️</span> Interactive Route Playback
         </button>
+        <button class="hist-sub-tab" data-tab="dailyLedger" onclick="HistoryStudio.switchHistoryTab('dailyLedger')">
+          <span>📅</span> Daily Run & Mileage Ledger
+        </button>
         <button class="hist-sub-tab" data-tab="tripsTable" onclick="HistoryStudio.switchHistoryTab('tripsTable')">
           <span>🛣️</span> Trips & Fuel / KM Audit
         </button>
@@ -1459,6 +1523,23 @@
                 <!-- Populated dynamically via HistoryStudio.renderCanDataTable() -->
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- PANE 5: DAILY FLEET & FUEL PERFORMANCE LEDGER -->
+        <div id="histTab_dailyLedger" class="hist-tab-content">
+          <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <h3 style="font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0;">📅 Daily Distance & Fuel Consumption Ledger</h3>
+              <p style="font-size: 0.78rem; color: var(--text-muted); margin: 2px 0 0;">Day-by-day analysis of KM run, fuel used, average mileage, and fuel rate per km.</p>
+            </div>
+            <button class="btn-secondary" style="font-size: 0.8rem; padding: 6px 14px;" onclick="HistoryStudio.fetchDailyLedger()">
+              <span>🔄</span> Refresh Daily Ledger
+            </button>
+          </div>
+
+          <div id="histDailyLedgerGrid" class="hist-daily-grid">
+            <!-- Populated dynamically via HistoryStudio.renderDailySummaries() -->
           </div>
         </div>
 

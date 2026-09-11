@@ -2934,4 +2934,295 @@ body {
   color: var(--traxen-amber-light);
 }
 
+/* ==========================================================================
+   TODAY'S FLEET & FUEL RUN PERFORMANCE BOX (Vehicle Card Widget)
+   ========================================================================== */
+.card-today-summary-box {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.08), rgba(0, 0, 0, 0.45));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.today-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.today-box-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #38BDF8;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.today-date-badge {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+}
+
+.today-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.today-metric-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  padding: 5px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.today-metric-cell.highlight-cell {
+  background: rgba(255, 143, 0, 0.08);
+  border-color: rgba(255, 143, 0, 0.35);
+}
+
+.tm-lbl {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.tm-val {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.tm-val small {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   DAILY FLEET & FUEL LEDGER (Tab 3 CAN Diagnostics Hub)
+   ========================================================================== */
+.daily-ledger-card {
+  grid-column: span 1;
+}
+
+.daily-hero-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 10px;
+}
+
+.daily-hero-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.daily-hero-item.highlight-box {
+  background: rgba(255, 143, 0, 0.08);
+  border: 1px solid rgba(255, 143, 0, 0.3);
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.daily-hero-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.daily-hero-val {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.daily-table-wrap {
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-glass);
+}
+
+.daily-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  text-align: left;
+}
+
+.daily-mini-table th {
+  background: rgba(15, 23, 42, 0.8);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.daily-mini-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ==========================================================================
+   DAILY BREAKDOWN MODAL GRID (History Studio Tab 5)
+   ========================================================================== */
+.hist-daily-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+  padding: 4px 0 16px;
+}
+
+.hist-daily-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.hist-daily-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.hist-daily-card.today-highlight {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.08), var(--bg-card));
+}
+
+.daily-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.daily-day-badge {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+}
+
+.daily-day-badge.today {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+.daily-day-badge.yesterday {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.daily-date-sub {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.daily-cost-pill {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.daily-metrics-quad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.daily-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dm-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dm-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.dm-val small {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.daily-card-footer {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.daily-footer-item {
+  text-align: center;
+}
+
+.daily-footer-item strong {
+  color: #fff;
+}
+
+
 

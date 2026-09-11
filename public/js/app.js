@@ -274,6 +274,14 @@ function renderVehicleCards() {
       ? (numTripFuel / numTripDist).toFixed(3)
       : (parseFloat(avgMileage) > 0 ? (1 / parseFloat(avgMileage)).toFixed(3) : '0.200');
 
+    // Per-Day Today's Performance Metrics
+    const today = dev.todaySummary || {};
+    const todayDist = (today.distanceKm !== undefined && today.distanceKm !== null) ? parseFloat(today.distanceKm).toFixed(1) : '0.0';
+    const todayFuel = (today.fuelUsedLiters !== undefined && today.fuelUsedLiters !== null) ? parseFloat(today.fuelUsedLiters).toFixed(2) : '0.00';
+    const todayMileage = (today.mileageKmpl && today.mileageKmpl > 0) ? parseFloat(today.mileageKmpl).toFixed(1) : (parseFloat(todayDist) > 0 && parseFloat(todayFuel) > 0 ? (parseFloat(todayDist)/parseFloat(todayFuel)).toFixed(1) : '0.0');
+    const todayFuelPerKm = (today.fuelPerKm && today.fuelPerKm > 0) ? parseFloat(today.fuelPerKm).toFixed(3) : (parseFloat(todayMileage) > 0 ? (1/parseFloat(todayMileage)).toFixed(3) : '0.000');
+    const todayCost = (today.fuelCost !== undefined && today.fuelCost !== null) ? parseFloat(today.fuelCost).toFixed(1) : '0.0';
+
     return `
       <div class="traxen-vehicle-card ${isSelected ? 'selected' : ''}" onclick="App.selectDevice('${dev.imei}')">
         <!-- Top Info Row -->
@@ -313,10 +321,40 @@ function renderVehicleCards() {
           </div>
         </div>
 
+        <!-- TODAY'S DAILY RUN & FUEL PERFORMANCE BOX -->
+        <div class="card-today-summary-box">
+          <div class="today-box-header">
+            <span class="today-box-title">📅 Today's Run & Fuel Mileage</span>
+            <span class="today-date-badge">${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>
+          </div>
+          <div class="today-metrics-grid">
+            <div class="today-metric-cell">
+              <span class="tm-lbl">KM Run</span>
+              <span class="tm-val highlight">${todayDist} <small>km</small></span>
+            </div>
+            <div class="today-metric-cell">
+              <span class="tm-lbl">Fuel Used</span>
+              <span class="tm-val" style="color: var(--traxen-primary-light);">${todayFuel} <small>L</small></span>
+            </div>
+            <div class="today-metric-cell">
+              <span class="tm-lbl">Avg Mileage</span>
+              <span class="tm-val" style="color: var(--status-moving);">${todayMileage} <small>km/L</small></span>
+            </div>
+            <div class="today-metric-cell highlight-cell">
+              <span class="tm-lbl">💧 Fuel / KM</span>
+              <span class="tm-val" style="color: var(--traxen-amber-light); font-weight: 800;">${todayFuelPerKm} <small>L/km</small></span>
+            </div>
+            <div class="today-metric-cell">
+              <span class="tm-lbl">Est. Cost</span>
+              <span class="tm-val" style="color: #38BDF8;">₹ ${todayCost}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Live Trip Economy & Fuel / KM Strip -->
         <div class="card-trip-economy-strip">
           <div class="econ-box">
-            <span class="econ-lbl">Trip</span>
+            <span class="econ-lbl">Current Trip</span>
             <span class="econ-val">${tripDist} km</span>
           </div>
           <div class="econ-box">
@@ -324,7 +362,7 @@ function renderVehicleCards() {
             <span class="econ-val" style="color: var(--traxen-primary-light);">${tripFuel} L</span>
           </div>
           <div class="econ-box econ-green">
-            <span class="econ-lbl">Mileage</span>
+            <span class="econ-lbl">Trip Mileage</span>
             <span class="econ-val">${avgMileage} <small>km/L</small></span>
           </div>
           <div class="econ-box econ-amber">
@@ -452,6 +490,9 @@ function selectDevice(imei) {
   if (window.CalibrationStudio) {
     window.CalibrationStudio.initCalibrationStudio(dev);
   }
+
+  // Fetch and update Daily Ledger in Tab 3
+  fetchDailySummaries(imei);
 }
 
 function trackVehicleOnMap(imei) {
@@ -720,6 +761,69 @@ function sendRemoteCommand(cmdText, targetImei = null) {
   if (input && !cmdText) input.value = '';
 }
 
+async function fetchDailySummaries(imei = currentDeviceImei) {
+  if (!imei) return;
+  try {
+    const res = await fetch(`/api/devices/${imei}/daily-summary?days=7`);
+    const data = await res.json();
+    if (data.success && data.data) {
+      renderDailySummaries(data.data);
+    }
+  } catch (err) {
+    console.error('[App] Error fetching daily summary:', err);
+  }
+}
+
+function renderDailySummaries(dailyData) {
+  if (!dailyData) return;
+  const today = dailyData.today || {};
+  const todayKmEl = document.getElementById('dailyTodayKm');
+  const todayFuelEl = document.getElementById('dailyTodayFuel');
+  const todayMileageEl = document.getElementById('dailyTodayMileage');
+  const todayFuelPerKmEl = document.getElementById('dailyTodayFuelPerKm');
+  const todayCostEl = document.getElementById('dailyTodayCost');
+  const tbody = document.getElementById('dailySummaryTableBody');
+
+  const dist = (today.distanceKm !== undefined && today.distanceKm !== null) ? parseFloat(today.distanceKm).toFixed(1) : '0.0';
+  const fuel = (today.fuelUsedLiters !== undefined && today.fuelUsedLiters !== null) ? parseFloat(today.fuelUsedLiters).toFixed(2) : '0.00';
+  const mileage = (today.mileageKmpl && today.mileageKmpl > 0) ? parseFloat(today.mileageKmpl).toFixed(1) : (parseFloat(dist) > 0 && parseFloat(fuel) > 0 ? (parseFloat(dist)/parseFloat(fuel)).toFixed(1) : '0.0');
+  const fuelPerKm = (today.fuelPerKm && today.fuelPerKm > 0) ? parseFloat(today.fuelPerKm).toFixed(3) : (parseFloat(mileage) > 0 ? (1/parseFloat(mileage)).toFixed(3) : '0.000');
+  const cost = (today.fuelCost !== undefined && today.fuelCost !== null) ? parseFloat(today.fuelCost).toFixed(1) : '0.0';
+
+  if (todayKmEl) todayKmEl.innerHTML = `${dist} <small style="font-size: 0.72rem; color: var(--text-muted);">km</small>`;
+  if (todayFuelEl) todayFuelEl.innerHTML = `${fuel} <small style="font-size: 0.72rem; color: var(--text-muted);">L</small>`;
+  if (todayMileageEl) todayMileageEl.innerHTML = `${mileage} <small style="font-size: 0.72rem; color: var(--text-muted);">km/L</small>`;
+  if (todayFuelPerKmEl) todayFuelPerKmEl.innerHTML = `${fuelPerKm} <small style="font-size: 0.72rem;">L/km</small>`;
+  if (todayCostEl) todayCostEl.innerHTML = `₹ ${cost}`;
+
+  if (tbody && Array.isArray(dailyData.summaries)) {
+    tbody.innerHTML = dailyData.summaries.map(s => {
+      const isToday = s.dayIndex === 0;
+      const dKm = parseFloat(s.distanceKm || 0).toFixed(1);
+      const dFuel = parseFloat(s.fuelUsedLiters || 0).toFixed(2);
+      const dMil = parseFloat(s.mileageKmpl || 0).toFixed(1);
+      const dFpk = parseFloat(s.fuelPerKm || 0).toFixed(3);
+      const dCost = parseFloat(s.fuelCost || 0).toFixed(1);
+
+      return `
+        <tr style="${isToday ? 'background: rgba(56, 189, 248, 0.08); font-weight: 700;' : ''}">
+          <td>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>${isToday ? '🟢' : '📅'}</span>
+              <span>${s.label}</span>
+            </div>
+          </td>
+          <td style="color: #fff; font-family: var(--font-mono);">${dKm} km</td>
+          <td style="color: var(--traxen-primary-light); font-family: var(--font-mono);">${dFuel} L</td>
+          <td style="color: var(--status-moving); font-family: var(--font-mono);">${dMil} km/L</td>
+          <td style="color: var(--traxen-amber-light); font-family: var(--font-mono);">${dFpk} L/km</td>
+          <td style="color: #38BDF8; font-family: var(--font-mono);">₹ ${dCost}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+}
+
 window.App = {
   switchTab,
   selectDevice,
@@ -731,5 +835,7 @@ window.App = {
   sendRemoteCommand,
   openAddDeviceModal,
   closeAddDeviceModal,
-  saveNewDevice
+  saveNewDevice,
+  fetchDailySummaries,
+  renderDailySummaries
 };

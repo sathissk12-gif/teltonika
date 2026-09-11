@@ -17,10 +17,20 @@ module.exports = (tcpServer, wsBroadcaster) => {
     const devices = Database.getAllDevices();
     const result = devices.map(d => {
       const isOnline = tcpServer.isDeviceOnline(d.imei);
+      const dailyData = Database.getDailySummaries(d.imei, 1);
       return {
         ...d,
         status: isOnline ? 'ONLINE' : (d.status || 'OFFLINE'),
-        isSocketConnected: isOnline
+        isSocketConnected: isOnline,
+        todaySummary: dailyData.today || {
+          distanceKm: 0.0,
+          fuelUsedLiters: 0.0,
+          mileageKmpl: 0.0,
+          fuelPerKm: 0.0,
+          fuelCost: 0.0,
+          runningMinutes: 0,
+          idleMinutes: 0
+        }
       };
     });
     res.json({ success: true, count: result.length, data: result });
@@ -591,6 +601,33 @@ module.exports = (tcpServer, wsBroadcaster) => {
     const { from, to, limit } = req.query;
     const trips = Database.getTrips(req.params.imei, parseInt(limit, 10) || 50, from || null, to || null);
     res.json({ success: true, count: trips.length, data: trips });
+  });
+
+  router.get('/devices/:imei/daily-summary', (req, res) => {
+    const days = parseInt(req.query.days, 10) || 7;
+    const result = Database.getDailySummaries(req.params.imei, days);
+    res.json({ success: true, data: result });
+  });
+
+  router.post('/devices/:imei/reset-simulation', (req, res) => {
+    const { imei } = req.params;
+    const result = Database.purgeSimulationData(imei);
+    if (tcpServer.mileageEngine) tcpServer.mileageEngine.resetTrip(imei);
+    if (tcpServer.tripEngine) tcpServer.tripEngine.resetTrips(imei);
+    res.json({ success: true, message: `All simulation and test history cleared for vehicle ${imei}. Fresh 0.0 KM real tracking active.`, data: result });
+  });
+
+  router.post('/admin/purge-all-simulation', (req, res) => {
+    const result = Database.purgeSimulationData(null);
+    if (tcpServer.mileageEngine) {
+      for (const imei of tcpServer.mileageEngine.deviceTrips.keys()) {
+        tcpServer.mileageEngine.resetTrip(imei);
+      }
+    }
+    if (tcpServer.tripEngine) {
+      tcpServer.tripEngine.resetTrips(null);
+    }
+    res.json({ success: true, message: 'All simulation data across all devices cleared.', data: result });
   });
 
   router.get('/devices/:imei/driver-score', (req, res) => {

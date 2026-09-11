@@ -6,13 +6,14 @@
 const HistoryStudio = {
   activeImei: null,
   activeVehicle: null,
-  activeTab: 'playback', // 'playback' | 'tripsTable' | 'fuelEvents' | 'canTable'
+  activeTab: 'playback', // 'playback' | 'dailyLedger' | 'tripsTable' | 'fuelEvents' | 'canTable'
   currentPreset: 'today',
 
   // Telemetry state
   playbackPoints: [],
   fuelEvents: [],
   trips: [],
+  dailySummaries: [],
   rawCanHistory: [],
   playbackIndex: 0,
   isPlaying: false,
@@ -191,11 +192,12 @@ const HistoryStudio = {
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
 
     try {
-      const [playbackRes, tripsRes, fuelEventsRes, historyRes] = await Promise.all([
+      const [playbackRes, tripsRes, fuelEventsRes, historyRes, dailyRes] = await Promise.all([
         fetch(`/api/devices/${this.activeImei}/playback?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=4000`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/trips?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=100`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/fuel-events?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}`).then(r => r.json()),
-        fetch(`/api/devices/${this.activeImei}/history?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=500`).then(r => r.json())
+        fetch(`/api/devices/${this.activeImei}/history?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=500`).then(r => r.json()),
+        fetch(`/api/devices/${this.activeImei}/daily-summary?days=7`).then(r => r.json()).catch(() => ({ success: false }))
       ]);
 
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -214,6 +216,7 @@ const HistoryStudio = {
       })).filter(p => p.latitude !== 0 && p.longitude !== 0);
 
       this.trips = (tripsRes.success && tripsRes.data) ? tripsRes.data || [] : [];
+      this.dailySummaries = (dailyRes && dailyRes.success && dailyRes.data && Array.isArray(dailyRes.data.summaries)) ? dailyRes.data.summaries : [];
 
       const rawFuelEvents = (fuelEventsRes.success && fuelEventsRes.data) ? fuelEventsRes.data.events || [] : [];
       this.fuelEvents = rawFuelEvents.map(e => ({
@@ -226,17 +229,15 @@ const HistoryStudio = {
 
       // Update Summary Statistics Banner
       this.renderSummaryStats(playbackRes.data ? playbackRes.data.summary : null, fuelEventsRes.data ? fuelEventsRes.data.summary : null);
-
       // Render Playback Map
       this.setupPlaybackRoute();
 
       // Render Trips Tab
+      this.updateSummaryBanner(playbackRes.data?.summary || {});
+      this.renderPlaybackRoute();
       this.renderTripsList();
-
-      // Render Fuel Events Tab
+      this.renderDailyLedgerList();
       this.renderFuelEventsList();
-
-      // Render Raw CAN Tab
       this.renderCanDataTable();
 
     } catch (err) {
@@ -773,6 +774,103 @@ const HistoryStudio = {
           <td><span class="table-ign-badge ${isIgn ? 'on' : 'off'}">${isIgn ? 'ON' : 'OFF'}</span></td>
           <td class="mono">${r.totalMileageCan ? `${(r.totalMileageCan / 1000).toFixed(1)}k` : (r.odometer ? `${r.odometer}k` : '--')}</td>
         </tr>
+      `;
+    }).join('');
+  },
+
+  // -------------------------------------------------------------
+  // TAB 5: DAILY FLEET & FUEL RUN LEDGER
+  // -------------------------------------------------------------
+  async fetchDailyLedger() {
+    try {
+      const res = await fetch(`/api/devices/${this.activeImei}/daily-summary?days=7`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        this.dailySummaries = data.data.summaries || [];
+        this.renderDailyLedgerList();
+      }
+    } catch (err) {
+      console.error('[HistoryStudio] Error fetching daily ledger:', err);
+    }
+  },
+
+  renderDailyLedgerList() {
+    const container = document.getElementById('histDailyLedgerGrid');
+    if (!container) return;
+
+    if (this.dailySummaries.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: var(--text-muted); background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-glass);">
+          <div style="font-size: 2.5rem; margin-bottom: 10px;">📅</div>
+          <div style="font-size: 1.05rem; font-weight: 700; color: #fff;">No Daily Distance Records Found</div>
+          <div style="font-size: 0.8rem; margin-top: 4px;">Daily run KM, fuel consumed, and mileage are automatically computed each day from real hardware packets.</div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = this.dailySummaries.map((s) => {
+      const isToday = s.dayIndex === 0;
+      const isYesterday = s.dayIndex === 1;
+      const distKm = parseFloat(s.distanceKm || 0).toFixed(1);
+      const fuelLiters = parseFloat(s.fuelUsedLiters || 0).toFixed(2);
+      const mileage = parseFloat(s.mileageKmpl || 0).toFixed(1);
+      const fuelPerKm = parseFloat(s.fuelPerKm || 0).toFixed(3);
+      const costTotal = parseFloat(s.fuelCost || 0).toFixed(1);
+      const costPerKm = parseFloat(s.costPerKm || 0).toFixed(2);
+      const runMins = s.runningMinutes || 0;
+      const idleMins = s.idleMinutes || 0;
+
+      const runHours = Math.floor(runMins / 60);
+      const runRemainingMins = runMins % 60;
+      const durationStr = runHours > 0 ? `${runHours}h ${runRemainingMins}m` : `${runRemainingMins}m`;
+
+      return `
+        <div class="hist-daily-card ${isToday ? 'today-highlight' : ''}">
+          <div class="daily-card-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="daily-day-badge ${isToday ? 'today' : (isYesterday ? 'yesterday' : '')}">
+                ${isToday ? '🟢 Today' : (isYesterday ? '🟡 Yesterday' : '📅 ' + s.label)}
+              </span>
+              <span class="daily-date-sub">${s.date}</span>
+            </div>
+            <div class="daily-cost-pill">₹ ${costTotal}</div>
+          </div>
+
+          <div class="daily-metrics-quad">
+            <div class="daily-metric-box">
+              <span class="dm-lbl">Total Run</span>
+              <span class="dm-val highlight">${distKm} <small>km</small></span>
+            </div>
+            <div class="daily-metric-box">
+              <span class="dm-lbl">Fuel Consumed</span>
+              <span class="dm-val" style="color: var(--traxen-primary-light);">${fuelLiters} <small>L</small></span>
+            </div>
+            <div class="daily-metric-box" style="border-color: rgba(22, 163, 74, 0.4); background: rgba(22, 163, 74, 0.08);">
+              <span class="dm-lbl" style="color: var(--status-moving);">Avg Mileage</span>
+              <span class="dm-val" style="color: var(--status-moving); font-size: 1.15rem;">${mileage} <small style="font-size: 0.7rem;">km/L</small></span>
+            </div>
+            <div class="daily-metric-box" style="border-color: rgba(255, 143, 0, 0.4); background: rgba(255, 143, 0, 0.08);">
+              <span class="dm-lbl" style="color: var(--traxen-amber-light);">💧 Fuel / KM</span>
+              <span class="dm-val" style="color: var(--traxen-amber-light); font-weight: 800;">${fuelPerKm} <small style="font-size: 0.7rem;">L/km</small></span>
+            </div>
+          </div>
+
+          <div class="daily-card-footer">
+            <div class="daily-footer-item">
+              <span>⏱️ Running: <strong>${durationStr}</strong></span>
+            </div>
+            <div class="daily-footer-item">
+              <span>🛑 Idle: <strong>${idleMins}m</strong></span>
+            </div>
+            <div class="daily-footer-item">
+              <span>⚡ Max Speed: <strong>${s.maxSpeed || 0} km/h</strong></span>
+            </div>
+            <div class="daily-footer-item">
+              <span>💳 ₹ <strong>${costPerKm}</strong> / km</span>
+            </div>
+          </div>
+        </div>
       `;
     }).join('');
   },
