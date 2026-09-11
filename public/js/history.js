@@ -990,23 +990,34 @@ const HistoryStudio = {
     }
 
     // Update Quick Metric Highlights
-    let sumRate = 0, peakRate = 0, bestMileage = 0, totalBurned = 0;
+    let sumRate = 0, peakRate = 0, bestMileage = 0, totalBurned = 0, sumLitersPerKm = 0, movingCount = 0;
     this.fuelBurnRecords.forEach(r => {
       const fr = r.fuelRateLitersPerHour || 0;
+      const spd = r.speed || 0;
       sumRate += fr;
       if (fr > peakRate) peakRate = fr;
       if (r.instantMileage > bestMileage && r.instantMileage < 120) bestMileage = r.instantMileage;
       if (r.totalFuelConsumedLiters > totalBurned) totalBurned = r.totalFuelConsumedLiters;
+      if (spd > 3 && fr > 0.05) {
+        const lkm = r.litersPerKm || (fr / spd);
+        sumLitersPerKm += lkm;
+        movingCount++;
+      }
     });
 
     const avgRate = (sumRate / Math.max(1, this.fuelBurnRecords.length)).toFixed(2);
+    const avgFuelPerKm = movingCount > 0 ? (sumLitersPerKm / movingCount).toFixed(3) : (bestMileage > 0 ? (1 / bestMileage).toFixed(3) : '0.054');
+    const avgMlPerKm = (parseFloat(avgFuelPerKm) * 1000).toFixed(1);
+
     const elAvg = document.getElementById('burnAvgRate');
+    const elAvgFuelPerKm = document.getElementById('burnAvgFuelPerKm');
     const elPeak = document.getElementById('burnPeakRate');
     const elBest = document.getElementById('burnBestMileage');
     const elTotal = document.getElementById('burnTotalFuel');
     const elCount = document.getElementById('burnTotalRecords');
 
     if (elAvg) elAvg.innerText = `${avgRate} L/h`;
+    if (elAvgFuelPerKm) elAvgFuelPerKm.innerHTML = `${avgFuelPerKm} L <small style="font-size: 0.72rem; color: var(--text-muted);">(${avgMlPerKm} ml)</small>`;
     if (elPeak) elPeak.innerText = `${peakRate.toFixed(2)} L/h`;
     if (elBest) elBest.innerText = `${bestMileage.toFixed(1)} km/L`;
     if (elTotal) elTotal.innerText = `${totalBurned.toFixed(2)} L`;
@@ -1052,11 +1063,22 @@ const HistoryStudio = {
       const odoFormatted = r.totalMileageCan ? `${Number(r.totalMileageCan).toLocaleString()} km` : '--';
       const locStr = (r.lat && r.lng) ? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}` : '--';
 
+      const spd = Math.round(r.speed || 0);
+      const frNum = r.fuelRateLitersPerHour || 0;
+      let fuelPerKmHtml = '--';
+      if (spd > 2 && frNum > 0.05) {
+        const lKm = r.litersPerKm || (frNum / spd);
+        const mlKm = r.mlPerKm || (lKm * 1000);
+        fuelPerKmHtml = `<span style="color: #f59e0b; font-weight: 800; font-family: var(--font-mono); white-space: nowrap;">${Number(lKm).toFixed(3)} L <small style="font-size: 0.68rem; color: var(--text-muted);">(${Number(mlKm).toFixed(1)} ml)</small></span>`;
+      } else if (spd === 0 && frNum > 0) {
+        fuelPerKmHtml = `<span style="color: #eab308; font-size: 0.72rem; font-family: var(--font-mono);">Idle (${frNum.toFixed(2)} L/h)</span>`;
+      }
+
       return `
         <tr>
           <td style="color: var(--text-muted); font-size: 0.72rem;">${startIdx + i}</td>
           <td style="font-family: var(--font-mono); font-weight: 700; white-space: nowrap;">${istDate} ${istTime}</td>
-          <td><span style="font-weight: 800; color: #fff;">${Math.round(r.speed || 0)}</span> <small style="color: var(--text-muted);">km/h</small></td>
+          <td><span style="font-weight: 800; color: #fff;">${spd}</span> <small style="color: var(--text-muted);">km/h</small></td>
           <td style="font-family: var(--font-mono); color: var(--text-secondary);">${r.rpm || 0}</td>
           <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${flowRate}</td>
           <td>
@@ -1064,6 +1086,7 @@ const HistoryStudio = {
               ${r.injectionStateBadge || r.injectionState}
             </span>
           </td>
+          <td>${fuelPerKmHtml}</td>
           <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
           <td style="color: var(--traxen-primary-light); font-weight: 700; font-family: var(--font-mono);">${r.stepFuelMl || 0} ml</td>
           <td style="color: var(--traxen-amber-light); font-family: var(--font-mono);">₹ ${(r.costPerKm || 0).toFixed(2)}</td>
@@ -1090,6 +1113,8 @@ const HistoryStudio = {
       'Engine RPM',
       'Fuel Rate (L/h)',
       'Injection State',
+      'Fuel per 1 KM (Liters)',
+      'Fuel per 1 KM (Milliliters)',
       'Instant Mileage (km/L)',
       'Step Burn (ml in 10s)',
       'Trip Fuel Consumed (L)',
@@ -1104,15 +1129,22 @@ const HistoryStudio = {
     const rows = this.fuelBurnRecords.map(r => {
       const d = new Date(r.timestamp);
       const istTime = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const spd = r.speed || 0;
+      const fr = r.fuelRateLitersPerHour || 0;
+      const lKm = (spd > 0 && fr > 0.05) ? (r.litersPerKm || (fr / spd)).toFixed(4) : 0;
+      const mlKm = (spd > 0 && fr > 0.05) ? (r.mlPerKm || (lKm * 1000)).toFixed(1) : 0;
+
       return [
         r.timestamp,
         istTime,
         this.activeVehicle.vehicleNumber || this.activeVehicle.numberPlate,
         this.activeImei,
-        r.speed || 0,
+        spd,
         r.rpm || 0,
-        r.fuelRateLitersPerHour || 0,
+        fr,
         `"${r.injectionState || ''}"`,
+        lKm,
+        mlKm,
         r.instantMileage || 0,
         r.stepFuelMl || 0,
         r.totalFuelConsumedLiters || 0,

@@ -233,12 +233,19 @@ class MileageEngine {
     // 10. Idle Fuel Waste (Liters)
     const idleWasteLiters = parseFloat(((trip.idleSeconds / 3600) * 0.8).toFixed(2));
 
+    const instantLitersPerKm = (speed > 3 && fuelRateLitersPerHour > 0.05) 
+      ? parseFloat((fuelRateLitersPerHour / speed).toFixed(4)) 
+      : 0;
+    const instantMlPerKm = parseFloat((instantLitersPerKm * 1000).toFixed(1));
+
     return {
       instantMileageKmPerLiter: instantKmPerLiter,
       avgMileageKmPerLiter: avgKmPerLiter,
       tripDistanceKm,
       tripFuelConsumedLiters: tripFuelLiters,
       fuelPerKm,
+      instantLitersPerKm,
+      instantMlPerKm,
       costPerKm,
       estimatedRangeKm,
       idleFuelConsumed: idleWasteLiters,

@@ -460,7 +460,7 @@
               <span class="badge-pill" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; font-size: 0.68rem; padding: 2px 6px; border-radius: 10px;">● Streaming Active</span>
             </div>
 
-            <div class="daily-table-wrap" style="max-height: 175px; overflow-y: auto;">
+            <div class="daily-table-wrap" style="max-height: 200px; overflow-y: auto;">
               <table class="daily-mini-table">
                 <thead>
                   <tr>
@@ -469,6 +469,7 @@
                     <th>RPM</th>
                     <th>Burn Rate</th>
                     <th>State</th>
+                    <th style="color: #f59e0b;">💧 1 KM Fuel</th>
                     <th>Mileage</th>
                   </tr>
                 </thead>
@@ -1617,10 +1618,14 @@
           </div>
 
           <!-- Quick Metric Highlights Ribbon -->
-          <div class="hist-summary-banner" style="grid-template-columns: repeat(6, 1fr); margin-bottom: 14px; background: rgba(249, 115, 22, 0.05); border-color: rgba(249, 115, 22, 0.25);">
+          <div class="hist-summary-banner" style="grid-template-columns: repeat(7, 1fr); margin-bottom: 14px; background: rgba(249, 115, 22, 0.05); border-color: rgba(249, 115, 22, 0.25);">
             <div class="hist-stat-item">
               <span class="hist-stat-label">Avg Fuel Rate</span>
               <span id="burnAvgRate" class="hist-stat-val" style="color: #f97316;">0.00 L/h</span>
+            </div>
+            <div class="hist-stat-item" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 4px 8px;">
+              <span class="hist-stat-label" style="color: #f59e0b; font-weight: 700;">💧 Avg Fuel / 1 KM</span>
+              <span id="burnAvgFuelPerKm" class="hist-stat-val" style="color: #f59e0b; font-weight: 900;">0.054 L (54 ml)</span>
             </div>
             <div class="hist-stat-item">
               <span class="hist-stat-label">Peak Fuel Rate</span>
@@ -1655,6 +1660,7 @@
                   <th>Engine RPM</th>
                   <th>Fuel Rate (L/h)</th>
                   <th>Injection State</th>
+                  <th style="color: #f59e0b;">💧 1 KM Fuel (L & ml)</th>
                   <th>Instant Mileage</th>
                   <th>Step Burn (ml)</th>
                   <th>Cost / KM</th>

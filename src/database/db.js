@@ -899,6 +899,12 @@ const Database = {
           ? parseFloat((speed / fuelRate).toFixed(1)) 
           : (r.instant_mileage || 0);
 
+        // Exact Fuel Consumed per 1 KM (Liters and Milliliters)
+        const litersPerKm = (speed > 0 && fuelRate > 0.05)
+          ? parseFloat((fuelRate / speed).toFixed(4))
+          : (instantMileage > 0 ? parseFloat((1 / instantMileage).toFixed(4)) : 0);
+        const mlPerKm = parseFloat((litersPerKm * 1000).toFixed(1));
+
         // Step fuel burn in milliliters (10s window)
         const stepFuelMl = parseFloat((fuelRate * (10 / 3600) * 1000).toFixed(1));
 
@@ -910,6 +916,8 @@ const Database = {
           speed: speed,
           rpm: rpm,
           fuelRateLitersPerHour: fuelRate,
+          litersPerKm: litersPerKm,
+          mlPerKm: mlPerKm,
           instantMileage: instantMileage,
           avgMileage: r.avg_mileage || 0,
           injectionState: state,

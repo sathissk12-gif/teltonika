@@ -833,7 +833,7 @@ async function fetchLiveFuelBurnStream(imei) {
     const tbody = document.getElementById('liveFuelBurnStreamBody');
     if (tbody && res.success && Array.isArray(res.records)) {
       if (res.records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px;">Waiting for combustion data stream...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px;">Waiting for combustion data stream...</td></tr>`;
         return;
       }
       tbody.innerHTML = res.records.map(r => {
@@ -841,8 +841,18 @@ async function fetchLiveFuelBurnStream(imei) {
         const timeStr = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const speed = Math.round(r.speed || 0);
         const rpm = r.rpm || 0;
-        const fuelRate = (r.fuelRateLitersPerHour !== undefined && r.fuelRateLitersPerHour !== null) ? Number(r.fuelRateLitersPerHour).toFixed(2) : '0.00';
+        const fuelRateNum = (r.fuelRateLitersPerHour !== undefined && r.fuelRateLitersPerHour !== null) ? Number(r.fuelRateLitersPerHour) : 0;
+        const fuelRate = fuelRateNum.toFixed(2);
         const instantM = (r.instantMileage > 0 && r.instantMileage < 150) ? `${Number(r.instantMileage).toFixed(1)} km/L` : '--';
+
+        let fuel1KmHtml = '--';
+        if (speed > 2 && fuelRateNum > 0.05) {
+          const lKm = r.litersPerKm || (fuelRateNum / speed);
+          const mlKm = r.mlPerKm || (lKm * 1000);
+          fuel1KmHtml = `<span style="color: #f59e0b; font-weight: 800; font-family: var(--font-mono); white-space: nowrap;">${Number(lKm).toFixed(3)} L <small style="font-size: 0.68rem; color: var(--text-muted);">(${Number(mlKm).toFixed(1)} ml)</small></span>`;
+        } else if (speed === 0 && fuelRateNum > 0) {
+          fuel1KmHtml = `<span style="color: #eab308; font-size: 0.7rem; font-family: var(--font-mono);">Idle (${fuelRate} L/h)</span>`;
+        }
 
         let state = r.injectionState || (speed === 0 ? 'IDLE_INJECTION' : 'ACTIVE_INJECTION');
         let stateBg = 'rgba(34, 197, 94, 0.15)';
@@ -869,6 +879,7 @@ async function fetchLiveFuelBurnStream(imei) {
             <td style="font-family: var(--font-mono); color: var(--text-secondary);">${rpm}</td>
             <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${fuelRate} L/h</td>
             <td><span class="badge-pill" style="background: ${stateBg}; color: ${stateColor}; font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; font-weight: 700;">${stateLabel}</span></td>
+            <td>${fuel1KmHtml}</td>
             <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
           </tr>
         `;
@@ -887,10 +898,20 @@ function appendLiveFuelBurnStream(data) {
   const timeStr = now.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const speed = Math.round(data.speed || 0);
-  const rpm = data.engineRpm || 0;
-  const fuelRate = (data.fuelRateLitersPerHour !== undefined && data.fuelRateLitersPerHour !== null) ? Number(data.fuelRateLitersPerHour).toFixed(2) : '0.00';
-  const instantM = (data.instantMileageKmPerLiter > 0 && data.instantMileageKmPerLiter < 150) ? `${Number(data.instantMileageKmPerLiter).toFixed(1)} km/L` : '--';
+  const rpm = data.engineRpm || data.rpm || 0;
+  const fuelRateNum = (data.fuelRateLitersPerHour !== undefined && data.fuelRateLitersPerHour !== null) ? Number(data.fuelRateLitersPerHour) : 0;
+  const fuelRate = fuelRateNum.toFixed(2);
+  const instantM = (data.instantMileageKmPerLiter > 0 && data.instantMileageKmPerLiter < 150) ? `${Number(data.instantMileageKmPerLiter).toFixed(1)} km/L` : (data.instantMileage > 0 && data.instantMileage < 150 ? `${Number(data.instantMileage).toFixed(1)} km/L` : '--');
   
+  let fuel1KmHtml = '--';
+  if (speed > 2 && fuelRateNum > 0.05) {
+    const lKm = (fuelRateNum / speed);
+    const mlKm = (lKm * 1000).toFixed(1);
+    fuel1KmHtml = `<span style="color: #f59e0b; font-weight: 800; font-family: var(--font-mono); white-space: nowrap;">${lKm.toFixed(3)} L <small style="font-size: 0.68rem; color: var(--text-muted);">(${mlKm} ml)</small></span>`;
+  } else if (speed === 0 && fuelRateNum > 0) {
+    fuel1KmHtml = `<span style="color: #eab308; font-size: 0.7rem; font-family: var(--font-mono);">Idle (${fuelRate} L/h)</span>`;
+  }
+
   let state = data.injectionState || (speed === 0 ? 'IDLE_INJECTION' : 'ACTIVE_INJECTION');
   let stateBg = 'rgba(34, 197, 94, 0.15)';
   let stateColor = '#22c55e';
@@ -916,6 +937,7 @@ function appendLiveFuelBurnStream(data) {
     <td style="font-family: var(--font-mono); color: var(--text-secondary);">${rpm}</td>
     <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${fuelRate} L/h</td>
     <td><span class="badge-pill" style="background: ${stateBg}; color: ${stateColor}; font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; font-weight: 700;">${stateLabel}</span></td>
+    <td>${fuel1KmHtml}</td>
     <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
   `;
 
