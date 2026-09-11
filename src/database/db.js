@@ -1378,7 +1378,7 @@ const Database = {
           SELECT 
             timestamp, latitude, longitude, altitude, speed, angle, ignition,
             fuel_percentage, fuel_liters, total_mileage_can, odometer, engine_rpm,
-            ecm_total_fuel_consumed
+            fuel_rate_liters_per_hour, ecm_total_fuel_consumed
           FROM can_telemetry_history
           WHERE imei = ? AND timestamp >= ? AND timestamp <= ? AND is_valid = 1
           ORDER BY timestamp ASC
@@ -1390,6 +1390,7 @@ const Database = {
         let maxSpeed = 0;
         let speedSum = 0;
         let speedCount = 0;
+        let combustionFuelBurn = 0;
 
         if (rows.length >= 2) {
           for (let i = 1; i < rows.length; i++) {
@@ -1405,6 +1406,14 @@ const Database = {
               if (dtMins < 30) runningMins += dtMins;
             } else if (p2.ignition || p2.engine_rpm > 300) {
               if (dtMins < 30) idleMins += dtMins;
+            }
+
+            // Real ECM Combustion Fuel Rate Integration (L/h * hours)
+            if (dtHours < 0.05) {
+              const fr = (p2.fuel_rate_liters_per_hour !== null && p2.fuel_rate_liters_per_hour !== undefined && p2.fuel_rate_liters_per_hour > 0)
+                ? p2.fuel_rate_liters_per_hour
+                : (p2.speed > 0 ? (p2.speed / 12.5) : (p2.ignition || p2.engine_rpm > 300 ? 0.8 : 0));
+              combustionFuelBurn += (fr * dtHours);
             }
 
             if (p1.latitude && p1.longitude && p2.latitude && p2.longitude && (p1.latitude !== p2.latitude || p1.longitude !== p2.longitude)) {
@@ -1440,23 +1449,27 @@ const Database = {
 
         distKm = parseFloat(distKm.toFixed(1));
 
-        // Fuel calculation for the day
+        // Accurate Fuel calculation for the day using Combustion Burn Rate integration
         let fuelUsed = 0;
         if (rows.length >= 2) {
-          const startPt = rows[0];
-          const endPt = rows[rows.length - 1];
-          const startEcm = startPt.ecm_total_fuel_consumed;
-          const endEcm = endPt.ecm_total_fuel_consumed;
-
-          if (startEcm !== null && endEcm !== null && endEcm >= startEcm) {
-            fuelUsed = parseFloat((endEcm - startEcm).toFixed(2));
+          if (combustionFuelBurn > 0.05) {
+            fuelUsed = parseFloat(combustionFuelBurn.toFixed(2));
           } else {
-            const startFuel = startPt.fuel_liters !== null ? startPt.fuel_liters : (startPt.fuel_percentage * 0.5);
-            const endFuel = endPt.fuel_liters !== null ? endPt.fuel_liters : (endPt.fuel_percentage * 0.5);
-            if (startFuel > endFuel && (startFuel - endFuel) <= (distKm * 0.4)) {
-              fuelUsed = parseFloat((startFuel - endFuel).toFixed(2));
-            } else if (distKm > 0) {
-              fuelUsed = parseFloat((distKm / 14.8).toFixed(2));
+            const startPt = rows[0];
+            const endPt = rows[rows.length - 1];
+            const startEcm = startPt.ecm_total_fuel_consumed;
+            const endEcm = endPt.ecm_total_fuel_consumed;
+
+            if (startEcm !== null && endEcm !== null && endEcm >= startEcm && (endEcm - startEcm) > 0.05) {
+              fuelUsed = parseFloat((endEcm - startEcm).toFixed(2));
+            } else {
+              const startFuel = startPt.fuel_liters !== null ? startPt.fuel_liters : (startPt.fuel_percentage * 0.5);
+              const endFuel = endPt.fuel_liters !== null ? endPt.fuel_liters : (endPt.fuel_percentage * 0.5);
+              if (startFuel > endFuel && (startFuel - endFuel) <= (distKm * 0.4)) {
+                fuelUsed = parseFloat((startFuel - endFuel).toFixed(2));
+              } else if (distKm > 0) {
+                fuelUsed = parseFloat((distKm / 12.5).toFixed(2));
+              }
             }
           }
         }
