@@ -126,8 +126,8 @@ module.exports = (tcpServer, wsBroadcaster) => {
       };
 
       const speed = lastTel.speed ?? lastTel.canSpeed ?? 0;
-      const rpm = lastTel.engineRpm ?? lastTel.engine_rpm ?? 0;
-      const fuelPct = lastTel.fuelPercentage ?? lastTel.fuelLevelPercentage ?? lastTel.fuel_level_percent ?? 15.0;
+      const rawFuelPct = lastTel.fuelPercentage ?? lastTel.fuelLevelPercentage ?? lastTel.fuel_level_percent ?? 15.0;
+      const fuelPct = Math.min(100, Math.max(0, Math.round(rawFuelPct)));
       const fuelLtrs = lastTel.fuelLiters ?? lastTel.fuelLevelLiters ?? lastTel.fuel_liters ?? 7.3;
       const coolant = lastTel.coolantTemp ?? lastTel.engine_temp ?? 91;
       const extVolt = lastTel.externalVoltage ?? lastTel.external_voltage ?? lastTel.batteryVoltage ?? 13.0;
@@ -240,8 +240,8 @@ module.exports = (tcpServer, wsBroadcaster) => {
 
     const speed = lastTel.speed ?? lastTel.canSpeed ?? 0;
     const rpm = lastTel.engineRpm ?? lastTel.engine_rpm ?? 0;
-    const fuelRate = lastTel.fuelRateLitersPerHour ?? lastTel.fuel_rate ?? (speed > 0 ? speed / 12.8 : (rpm > 300 ? 0.8 : 0));
-    const fuelPct = lastTel.fuelPercentage ?? lastTel.fuelLevelPercentage ?? lastTel.fuel_level_percent ?? 15.0;
+    const rawFuelPct = lastTel.fuelPercentage ?? lastTel.fuelLevelPercentage ?? lastTel.fuel_level_percent ?? 15.0;
+    const fuelPct = Math.min(100, Math.max(0, Math.round(rawFuelPct)));
     const fuelLtrs = lastTel.fuelLiters ?? lastTel.fuelLevelLiters ?? lastTel.fuel_liters ?? 7.3;
     const coolant = lastTel.coolantTemp ?? lastTel.engine_temp ?? 91;
     const extVolt = lastTel.externalVoltage ?? lastTel.external_voltage ?? lastTel.batteryVoltage ?? 13.02;
