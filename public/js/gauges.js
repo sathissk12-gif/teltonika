@@ -120,13 +120,13 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
     ? parseFloat(telemetry.avgMileageKmPerLiter).toFixed(1)
     : (telemetry.avgMileage ? parseFloat(telemetry.avgMileage).toFixed(1) : '15.4');
 
-  const tripDist = (telemetry.tripDistanceKm !== undefined && telemetry.tripDistanceKm !== null && telemetry.tripDistanceKm > 0)
+  const tripDist = (telemetry.tripDistanceKm !== undefined && telemetry.tripDistanceKm !== null && !isNaN(telemetry.tripDistanceKm))
     ? parseFloat(telemetry.tripDistanceKm).toFixed(1)
-    : (telemetry.tripDistance ? parseFloat(telemetry.tripDistance).toFixed(1) : (telemetry.tripOdometerKm ? parseFloat(telemetry.tripOdometerKm).toFixed(1) : '0.0'));
+    : (telemetry.tripDistance !== undefined && !isNaN(telemetry.tripDistance) ? parseFloat(telemetry.tripDistance).toFixed(1) : (telemetry.tripOdometerKm ? parseFloat(telemetry.tripOdometerKm).toFixed(1) : '0.0'));
 
-  const tripFuel = (telemetry.tripFuelConsumedLiters !== undefined && telemetry.tripFuelConsumedLiters !== null && telemetry.tripFuelConsumedLiters > 0)
+  const tripFuel = (telemetry.tripFuelConsumedLiters !== undefined && telemetry.tripFuelConsumedLiters !== null && !isNaN(telemetry.tripFuelConsumedLiters))
     ? parseFloat(telemetry.tripFuelConsumedLiters).toFixed(1)
-    : (telemetry.tripFuel ? parseFloat(telemetry.tripFuel).toFixed(1) : '0.0');
+    : (telemetry.tripFuel !== undefined && !isNaN(telemetry.tripFuel) ? parseFloat(telemetry.tripFuel).toFixed(1) : '0.0');
 
   const costKm = (telemetry.costPerKm && telemetry.costPerKm > 0)
     ? `₹ ${parseFloat(telemetry.costPerKm).toFixed(2)}`

@@ -894,11 +894,53 @@ const Database = {
       LIMIT ?
     `).all(imei, fromTime, toTime, limit);
 
+    let totalDistKm = 0;
+    let maxSpeed = 0;
+    let speedSum = 0;
+    let speedCount = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      const p1 = rows[i - 1];
+      const p2 = rows[i];
+      if (p2.speed > maxSpeed) maxSpeed = p2.speed;
+      if (p2.speed > 0) {
+        speedSum += p2.speed;
+        speedCount++;
+      }
+
+      if (p1.latitude && p1.longitude && p2.latitude && p2.longitude && (p1.latitude !== p2.latitude || p1.longitude !== p2.longitude)) {
+        const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
+        const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) *
+                  Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const stepDist = 6371.0 * c;
+        const dtHours = Math.max(0.0001, (new Date(p2.timestamp) - new Date(p1.timestamp)) / 3600000);
+        if (stepDist >= 0.003 && (stepDist / dtHours) < 180) {
+          totalDistKm += stepDist;
+        }
+      } else if (p2.speed > 2) {
+        const dtHours = Math.max(0.0001, (new Date(p2.timestamp) - new Date(p1.timestamp)) / 3600000);
+        if (dtHours < 0.05) {
+          totalDistKm += p2.speed * dtHours;
+        }
+      }
+    }
+
+    const avgSpeed = speedCount > 0 ? Math.round(speedSum / speedCount) : 0;
+
     return {
       imei,
       from: fromTime,
       to: toTime,
       pointCount: rows.length,
+      summary: {
+        totalDistanceKm: parseFloat(totalDistKm.toFixed(1)),
+        maxSpeed: Math.round(maxSpeed),
+        avgSpeed: avgSpeed,
+        pointsCount: rows.length
+      },
       points: rows.map(r => ({
         timestamp: r.timestamp,
         lat: r.latitude,
@@ -1049,7 +1091,8 @@ const Database = {
       const rows = sqliteDb.prepare(`
         SELECT 
           timestamp, latitude, longitude, altitude, speed, angle, ignition,
-          fuel_percentage, fuel_liters, total_mileage_can, odometer, engine_rpm
+          fuel_percentage, fuel_liters, total_mileage_can, odometer, engine_rpm,
+          ecm_total_fuel_consumed
         FROM can_telemetry_history
         WHERE imei = ? AND timestamp >= ? AND timestamp <= ?
         ORDER BY timestamp ASC
@@ -1075,42 +1118,65 @@ const Database = {
               const endTime = endPt.timestamp;
               const durationMins = Math.max(1, Math.round((new Date(endTime) - new Date(startTime)) / 60000));
 
-              // Distance calculation
+              // High-Precision Point-by-Point GPS Haversine Distance
               let distKm = 0;
-              if (endPt.total_mileage_can && startPt.total_mileage_can && endPt.total_mileage_can > startPt.total_mileage_can) {
-                distKm = endPt.total_mileage_can - startPt.total_mileage_can;
-              } else if (endPt.odometer && startPt.odometer && endPt.odometer > startPt.odometer) {
-                distKm = endPt.odometer - startPt.odometer;
-              } else {
-                // Haversine approximation
-                for (let j = 1; j < currentTripPoints.length; j++) {
-                  const p1 = currentTripPoints[j - 1];
-                  const p2 = currentTripPoints[j];
-                  const R = 6371; // km
+              for (let j = 1; j < currentTripPoints.length; j++) {
+                const p1 = currentTripPoints[j - 1];
+                const p2 = currentTripPoints[j];
+                if (p1.latitude && p1.longitude && p2.latitude && p2.longitude && (p1.latitude !== p2.latitude || p1.longitude !== p2.longitude)) {
                   const dLat = (p2.latitude - p1.latitude) * Math.PI / 180;
                   const dLon = (p2.longitude - p1.longitude) * Math.PI / 180;
-                  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                             Math.cos(p1.latitude * Math.PI / 180) * Math.cos(p2.latitude * Math.PI / 180) *
-                            Math.sin(dLon/2) * Math.sin(dLon/2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                  distKm += R * c;
+                            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  const stepDist = 6371.0 * c;
+                  const dtHours = Math.max(0.0001, (new Date(p2.timestamp) - new Date(p1.timestamp)) / 3600000);
+                  if (stepDist >= 0.003 && (stepDist / dtHours) < 180) {
+                    distKm += stepDist;
+                  }
+                } else if (p2.speed > 2) {
+                  const dtHours = Math.max(0.0001, (new Date(p2.timestamp) - new Date(p1.timestamp)) / 3600000);
+                  if (dtHours < 0.05) {
+                    distKm += p2.speed * dtHours;
+                  }
+                }
+              }
+
+              // CAN Odometer Validation Check
+              const startOdo = startPt.total_mileage_can || startPt.odometer || 0;
+              const endOdo = endPt.total_mileage_can || endPt.odometer || 0;
+              if (startOdo > 0 && endOdo > startOdo) {
+                const odoD = endOdo - startOdo;
+                if (odoD > 0 && odoD < 1500) {
+                  if (distKm === 0 || Math.abs(odoD - distKm) / Math.max(0.1, distKm) < 0.35) {
+                    distKm = Math.max(distKm, odoD);
+                  }
                 }
               }
               distKm = parseFloat(distKm.toFixed(2));
 
-              if (distKm >= 0.2) {
+              if (distKm >= 0.1) {
                 // Fuel calculation
-                const startFuel = startPt.fuel_liters !== null ? startPt.fuel_liters : (startPt.fuel_percentage * 0.5);
-                const endFuel = endPt.fuel_liters !== null ? endPt.fuel_liters : (endPt.fuel_percentage * 0.5);
-                let fuelUsed = Math.max(0, startFuel - endFuel);
-                if (fuelUsed <= 0 || fuelUsed > distKm) {
-                  // Fallback based on typical 15.4 km/L economy
-                  fuelUsed = parseFloat((distKm / 15.4).toFixed(2));
-                }
-                fuelUsed = parseFloat(fuelUsed.toFixed(2));
+                const startEcm = startPt.ecm_total_fuel_consumed;
+                const endEcm = endPt.ecm_total_fuel_consumed;
+                let fuelUsed = 0;
 
-                const mileage = distKm > 0 && fuelUsed > 0 ? parseFloat((distKm / fuelUsed).toFixed(2)) : 15.4;
-                const fuelPerKm = distKm > 0 && fuelUsed > 0 ? parseFloat((fuelUsed / distKm).toFixed(3)) : 0.065;
+                if (startEcm !== null && endEcm !== null && endEcm >= startEcm) {
+                  fuelUsed = parseFloat((endEcm - startEcm).toFixed(2));
+                } else {
+                  const startFuel = startPt.fuel_liters !== null ? startPt.fuel_liters : (startPt.fuel_percentage * 0.5);
+                  const endFuel = endPt.fuel_liters !== null ? endPt.fuel_liters : (endPt.fuel_percentage * 0.5);
+                  if (startFuel > endFuel && (startFuel - endFuel) <= (distKm * 0.4)) {
+                    fuelUsed = parseFloat((startFuel - endFuel).toFixed(2));
+                  } else {
+                    fuelUsed = parseFloat((distKm / 14.8).toFixed(2));
+                  }
+                }
+                fuelUsed = parseFloat(Math.max(0.02, fuelUsed).toFixed(2));
+
+                const mileage = distKm > 0 && fuelUsed > 0 ? parseFloat((distKm / fuelUsed).toFixed(2)) : 14.8;
+                const fuelPerKm = distKm > 0 && fuelUsed > 0 ? parseFloat((fuelUsed / distKm).toFixed(3)) : parseFloat((1 / mileage).toFixed(3));
                 const costTotal = parseFloat((fuelUsed * 102.50).toFixed(1));
                 const costPerKm = parseFloat((fuelPerKm * 102.50).toFixed(2));
 
@@ -1119,7 +1185,7 @@ const Database = {
                 const avgSpeed = Math.round(speeds.reduce((a, b) => a + b, 0) / Math.max(1, speeds.length));
                 const idleMins = currentTripPoints.filter(p => p.speed === 0 && p.ignition).length;
 
-                trips.push({
+                trips.unshift({
                   id: `trip_${trips.length + 1}`,
                   startTime,
                   endTime,

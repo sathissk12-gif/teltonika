@@ -4,6 +4,21 @@
  * Driving Distance, and Cost Per Kilometer for commercial fleets & passenger vehicles.
  */
 
+// Earth radius in kilometers for Haversine distance
+const EARTH_RADIUS_KM = 6371.0;
+
+function calculateHaversineKm(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  if (lat1 === lat2 && lon1 === lon2) return 0;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_KM * c;
+}
+
 class MileageEngine {
   constructor(options = {}) {
     this.fuelPricePerLiter = options.fuelPricePerLiter || 102.50; // Default INR per Liter
@@ -19,21 +34,30 @@ class MileageEngine {
    */
   process(imei, telemetry, deviceProfile = {}) {
     let trip = this.deviceTrips.get(imei);
-    const now = Date.now();
+    const now = telemetry.timestamp ? new Date(telemetry.timestamp).getTime() : Date.now();
     const rawIos = telemetry.rawIos || {};
 
-    const currentOdo = (telemetry.totalMileageCan && telemetry.totalMileageCan > 0) 
-      ? telemetry.totalMileageCan 
-      : (telemetry.odometer || telemetry.odometerKm || 0);
+    const currentLat = parseFloat(telemetry.lat !== undefined ? telemetry.lat : (telemetry.latitude || 0));
+    const currentLng = parseFloat(telemetry.lng !== undefined ? telemetry.lng : (telemetry.longitude || 0));
+
+    // Odometer: if CAN total mileage is given (in km), use it; otherwise standard odometer
+    let currentOdo = 0;
+    if (telemetry.totalMileageCan && Number(telemetry.totalMileageCan) > 0) {
+      currentOdo = Number(telemetry.totalMileageCan);
+    } else if (telemetry.odometer && Number(telemetry.odometer) > 0) {
+      currentOdo = Number(telemetry.odometer);
+    } else if (telemetry.odometerKm && Number(telemetry.odometerKm) > 0) {
+      currentOdo = Number(telemetry.odometerKm);
+    }
 
     const currentFuel = (telemetry.fuelLevelLiters !== undefined && telemetry.fuelLevelLiters !== null) 
-      ? telemetry.fuelLevelLiters 
-      : (telemetry.fuelLiters || 0);
+      ? Number(telemetry.fuelLevelLiters) 
+      : Number(telemetry.fuelLiters || 0);
 
-    const speed = telemetry.speed || telemetry.canSpeed || 0;
-    const engineRpm = telemetry.engineRpm || (rawIos[85] !== undefined ? Number(rawIos[85]) : (rawIos[32] !== undefined ? Number(rawIos[32]) : 0));
-    const acceleratorPedal = telemetry.acceleratorPedal !== undefined ? telemetry.acceleratorPedal : (rawIos[82] !== undefined ? Number(rawIos[82]) : (rawIos[35] !== undefined ? Number(rawIos[35]) : 0));
-    const engineLoad = telemetry.engineLoad !== undefined ? telemetry.engineLoad : (rawIos[31] !== undefined ? Number(rawIos[31]) : 0);
+    const speed = Number(telemetry.speed || telemetry.canSpeed || 0);
+    const engineRpm = Number(telemetry.engineRpm || (rawIos[85] !== undefined ? Number(rawIos[85]) : (rawIos[32] !== undefined ? Number(rawIos[32]) : 0)));
+    const acceleratorPedal = telemetry.acceleratorPedal !== undefined ? Number(telemetry.acceleratorPedal) : (rawIos[82] !== undefined ? Number(rawIos[82]) : (rawIos[35] !== undefined ? Number(rawIos[35]) : 0));
+    const engineLoad = telemetry.engineLoad !== undefined ? Number(telemetry.engineLoad) : (rawIos[31] !== undefined ? Number(rawIos[31]) : 0);
 
     // Direct ECM Total Fuel Consumed (AVL ID 88 / AVL ID 107 - Liters)
     let ecmTotalFuelConsumed = null;
@@ -57,10 +81,13 @@ class MileageEngine {
       directEcmFuelRate = parseFloat((Number(rawIos[49]) * 0.05).toFixed(2));
     }
 
-    const isIgnOn = Boolean(telemetry.ignition || engineRpm > 300);
+    const isIgnOn = Boolean(telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1 || engineRpm > 300 || speed > 3);
 
-    // Initialize Trip if not present
-    if (!trip) {
+    // Detect if previous trip has ended (Ignition OFF for > 5 minutes or time gap > 10 mins)
+    const timeGapMinutes = trip ? (now - trip.lastTime) / (1000 * 60) : 0;
+    const shouldStartNewTrip = !trip || (trip.isStopped && isIgnOn && speed > 2) || (timeGapMinutes > 15);
+
+    if (shouldStartNewTrip) {
       trip = {
         startTime: now,
         startOdometer: currentOdo,
@@ -70,8 +97,12 @@ class MileageEngine {
         lastOdometer: currentOdo,
         lastFuel: currentFuel,
         lastEcmFuel: ecmTotalFuelConsumed,
+        lastLat: currentLat,
+        lastLng: currentLng,
         accumulatedDistanceKm: 0,
         accumulatedFuelLiters: 0,
+        idleSeconds: 0,
+        isStopped: !isIgnOn,
         samples: 0
       };
       this.deviceTrips.set(imei, trip);
@@ -84,40 +115,69 @@ class MileageEngine {
 
     // Delta time in hours
     const dtHours = Math.max(0, (now - trip.lastTime) / (1000 * 3600));
+    const dtSeconds = Math.max(0, (now - trip.lastTime) / 1000);
     trip.lastTime = now;
 
-    // 1. Distance Traveled
+    // 1. High-Precision Distance Calculation
     let deltaDist = 0;
-    if (currentOdo >= trip.lastOdometer && (currentOdo - trip.lastOdometer) < 500) {
-      deltaDist = currentOdo - trip.lastOdometer;
-    } else if (speed > 0 && dtHours > 0 && dtHours < 0.1) {
+
+    // A) GPS Haversine Distance (High-Precision Point-to-Point)
+    if (currentLat !== 0 && currentLng !== 0 && trip.lastLat !== 0 && trip.lastLng !== 0) {
+      const gpsDistance = calculateHaversineKm(trip.lastLat, trip.lastLng, currentLat, currentLng);
+      // Filter out stationary GPS noise (< 3 meters) and reject impossible velocity (> 180 km/h)
+      if (gpsDistance >= 0.003 && (dtHours === 0 || (gpsDistance / Math.max(0.0001, dtHours)) < 180)) {
+        deltaDist = gpsDistance;
+      }
+    }
+
+    // B) Speed x Time Integration Fallback (if GPS coordinates didn't shift or in tunnel)
+    if (deltaDist === 0 && speed > 2 && dtHours > 0 && dtHours < 0.05) {
       deltaDist = speed * dtHours;
     }
-    trip.accumulatedDistanceKm += deltaDist;
-    trip.lastOdometer = currentOdo;
 
-    // 2. Resolve Instant Fuel Rate (L/h) from ECM or High-Precision Model
+    // C) CAN Odometer Validation Check
+    if (currentOdo > 0 && trip.lastOdometer > 0 && currentOdo > trip.lastOdometer) {
+      const odoDelta = currentOdo - trip.lastOdometer;
+      // If odometer delta is reasonable (e.g. 0.01 - 5 km)
+      if (odoDelta > 0 && odoDelta < 10) {
+        if (deltaDist === 0 || Math.abs(odoDelta - deltaDist) / Math.max(0.1, deltaDist) < 0.4) {
+          deltaDist = Math.max(deltaDist, odoDelta);
+        }
+      }
+    }
+
+    trip.accumulatedDistanceKm += deltaDist;
+    trip.lastOdometer = currentOdo > 0 ? currentOdo : trip.lastOdometer;
+    if (currentLat !== 0 && currentLng !== 0) {
+      trip.lastLat = currentLat;
+      trip.lastLng = currentLng;
+    }
+
+    if (isIgnOn && speed <= 2) {
+      trip.idleSeconds += dtSeconds;
+    }
+    trip.isStopped = !isIgnOn;
+
+    // 2. Resolve Instant Fuel Rate (L/h) from ECM or Vehicle Physics Model
     let fuelRateLitersPerHour = 0;
     if (directEcmFuelRate !== null && directEcmFuelRate > 0) {
       fuelRateLitersPerHour = directEcmFuelRate;
     } else if (isIgnOn && engineRpm > 0) {
       if (speed > 5) {
-        // High precision load-based injection model
-        const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 15.0 : 4.5);
+        const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : ((deviceProfile.category === 'CAR' || deviceProfile.category === 'CAR SUV') ? 14.8 : 4.5);
         const loadFactor = engineLoad > 0 ? (0.6 + (engineLoad / 100) * 0.8) : (1.0 + (acceleratorPedal / 100) * 0.6);
         fuelRateLitersPerHour = parseFloat(((speed / baseFuelEconomy) * loadFactor).toFixed(2));
       } else {
-        // Idling injection rate (0.6 - 1.2 L/h based on RPM)
-        const idleBase = (deviceProfile.category === 'BIKE') ? 0.2 : (deviceProfile.category === 'CAR' ? 0.75 : 1.8);
+        const idleBase = (deviceProfile.category === 'BIKE') ? 0.2 : ((deviceProfile.category === 'CAR' || deviceProfile.category === 'CAR SUV') ? 0.75 : 1.8);
         const rpmFactor = Math.max(1.0, engineRpm / 800);
         fuelRateLitersPerHour = parseFloat((idleBase * rpmFactor).toFixed(2));
       }
     } else if (isIgnOn && speed > 5) {
-      const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 15.0 : 4.5);
+      const baseFuelEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : ((deviceProfile.category === 'CAR' || deviceProfile.category === 'CAR SUV') ? 14.8 : 4.5);
       fuelRateLitersPerHour = parseFloat((speed / baseFuelEconomy).toFixed(2));
     }
 
-    // 3. Resolve Trip Fuel Consumed (Prefer Direct ECM Counted Fuel)
+    // 3. Resolve Trip Fuel Consumed
     if (ecmTotalFuelConsumed !== null && trip.startEcmFuel !== null && ecmTotalFuelConsumed >= trip.startEcmFuel) {
       trip.accumulatedFuelLiters = parseFloat((ecmTotalFuelConsumed - trip.startEcmFuel).toFixed(2));
     } else if (dtHours > 0 && dtHours < 0.1 && fuelRateLitersPerHour > 0) {
@@ -130,7 +190,7 @@ class MileageEngine {
     if (!isIgnOn || engineRpm === 0) {
       injectionState = 'ENGINE_OFF';
     } else if (speed > 25 && acceleratorPedal === 0 && engineRpm > 1200) {
-      injectionState = 'DECELERATION_CUTOFF'; // DFCO (Decel Fuel Cut-Off)
+      injectionState = 'DECELERATION_CUTOFF'; // DFCO
     } else if (speed === 0 && engineRpm > 300) {
       injectionState = 'IDLE_INJECTION';
     } else if (acceleratorPedal > 40 || engineLoad > 60) {
@@ -145,19 +205,21 @@ class MileageEngine {
       instantKmPerLiter = parseFloat((speed / fuelRateLitersPerHour).toFixed(1));
     }
 
-    // 6. Trip Average Mileage (km/L)
+    // 6. Trip Distance & Economy Metrics
     let tripDistanceKm = parseFloat(trip.accumulatedDistanceKm.toFixed(2));
     let tripFuelLiters = parseFloat(trip.accumulatedFuelLiters.toFixed(2));
     
-    const defaultEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : (deviceProfile.category === 'CAR' ? 14.8 : 4.2);
+    const defaultEconomy = (deviceProfile.category === 'BIKE') ? 45.0 : ((deviceProfile.category === 'CAR' || deviceProfile.category === 'CAR SUV') ? 14.8 : 4.5);
     let avgKmPerLiter = defaultEconomy;
 
-    if (tripDistanceKm > 0.3 && tripFuelLiters > 0.02) {
+    if (tripDistanceKm > 0.1 && tripFuelLiters > 0.01) {
       avgKmPerLiter = parseFloat((tripDistanceKm / tripFuelLiters).toFixed(1));
     }
 
-    // 7. Fuel Economy in L/100km
-    const lPer100Km = avgKmPerLiter > 0 ? parseFloat((100 / avgKmPerLiter).toFixed(1)) : 0;
+    // 7. Fuel Consumption per KM (L/km)
+    const fuelPerKm = tripDistanceKm > 0.1 && tripFuelLiters > 0.01 
+      ? parseFloat((tripFuelLiters / tripDistanceKm).toFixed(3))
+      : parseFloat((1 / Math.max(1, avgKmPerLiter)).toFixed(3));
 
     // 8. Cost Per Kilometer (₹/km)
     const costPerKm = avgKmPerLiter > 0 ? parseFloat((this.fuelPricePerLiter / avgKmPerLiter).toFixed(2)) : 0;
@@ -168,14 +230,18 @@ class MileageEngine {
       estimatedRangeKm = Math.round(currentFuel * avgKmPerLiter);
     }
 
+    // 10. Idle Fuel Waste (Liters)
+    const idleWasteLiters = parseFloat(((trip.idleSeconds / 3600) * 0.8).toFixed(2));
+
     return {
       instantMileageKmPerLiter: instantKmPerLiter,
       avgMileageKmPerLiter: avgKmPerLiter,
       tripDistanceKm,
       tripFuelConsumedLiters: tripFuelLiters,
-      fuelEconomyLPer100Km: lPer100Km,
+      fuelPerKm,
       costPerKm,
       estimatedRangeKm,
+      idleFuelConsumed: idleWasteLiters,
       fuelRateLitersPerHour: parseFloat(fuelRateLitersPerHour.toFixed(2)),
       injectionState,
       ecmTotalFuelConsumed,
@@ -190,3 +256,4 @@ class MileageEngine {
 }
 
 module.exports = MileageEngine;
+

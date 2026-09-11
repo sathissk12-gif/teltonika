@@ -256,13 +256,13 @@ function renderVehicleCards() {
     const displayRpm = isOnline ? (tel.engineRpm || 0) : 0;
 
     // Trip & Fuel per KM calculation for vehicle card
-    const tripDist = (tel.tripDistanceKm !== undefined && tel.tripDistanceKm !== null && tel.tripDistanceKm > 0)
+    const tripDist = (tel.tripDistanceKm !== undefined && tel.tripDistanceKm !== null && !isNaN(tel.tripDistanceKm))
       ? parseFloat(tel.tripDistanceKm).toFixed(1)
-      : (tel.tripDistance ? parseFloat(tel.tripDistance).toFixed(1) : (tel.tripOdometerKm ? parseFloat(tel.tripOdometerKm).toFixed(1) : '0.0'));
+      : (tel.tripDistance !== undefined && !isNaN(tel.tripDistance) ? parseFloat(tel.tripDistance).toFixed(1) : (tel.tripOdometerKm ? parseFloat(tel.tripOdometerKm).toFixed(1) : '0.0'));
 
-    const tripFuel = (tel.tripFuelConsumedLiters !== undefined && tel.tripFuelConsumedLiters !== null && tel.tripFuelConsumedLiters > 0)
+    const tripFuel = (tel.tripFuelConsumedLiters !== undefined && tel.tripFuelConsumedLiters !== null && !isNaN(tel.tripFuelConsumedLiters))
       ? parseFloat(tel.tripFuelConsumedLiters).toFixed(1)
-      : (tel.tripFuel ? parseFloat(tel.tripFuel).toFixed(1) : '0.0');
+      : (tel.tripFuel !== undefined && !isNaN(tel.tripFuel) ? parseFloat(tel.tripFuel).toFixed(1) : '0.0');
 
     const numTripDist = parseFloat(tripDist) || 0;
     const numTripFuel = parseFloat(tripFuel) || 0;
