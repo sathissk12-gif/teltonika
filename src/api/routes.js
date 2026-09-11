@@ -325,6 +325,29 @@ module.exports = (tcpServer, wsBroadcaster) => {
     }
   });
 
+  router.post(['/customer/vehicles/:id/wakeup', '/devices/:imei/wakeup'], (req, res) => {
+    const imei = req.params.imei || req.params.id;
+    try {
+      const result = tcpServer.sendCommand(imei, 'getgps');
+      res.json({
+        success: true,
+        method: 'GPRS_CODEC12',
+        message: `Wake-up command sent to ${imei} over active TCP socket. GPS & CAN telematics will stream immediately.`
+      });
+    } catch (err) {
+      const dev = Database.getDevice(imei);
+      const sim = (dev && dev.simNumber) ? dev.simNumber : '';
+      res.json({
+        success: false,
+        method: 'SMS_FALLBACK',
+        offline: true,
+        simNumber: sim,
+        smsCommand: '  getgps',
+        message: `Device is in Deep Sleep (TCP socket disconnected). Send SMS "  getgps" or give a Missed Call to device SIM (${sim || 'SIM Number'}) to wake it up instantly.`
+      });
+    }
+  });
+
   // -------------------------------------------------------------
   // 1. LEGACY & LIVE DEVICE APIS
   // -------------------------------------------------------------
