@@ -609,6 +609,23 @@ module.exports = (tcpServer, wsBroadcaster) => {
     res.json({ success: true, data: result });
   });
 
+  router.get('/devices/:imei/fuel-burn-history', (req, res) => {
+    try {
+      const { from, to, limit, offset, injectionState, minSpeed } = req.query;
+      const history = Database.getFuelBurnHistory(req.params.imei, {
+        from: from || null,
+        to: to || null,
+        limit: parseInt(limit, 10) || 500,
+        offset: parseInt(offset, 10) || 0,
+        injectionState: injectionState || null,
+        minSpeed: minSpeed !== undefined ? parseFloat(minSpeed) : null
+      });
+      res.json({ success: true, ...history });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   router.post('/devices/:imei/reset-simulation', (req, res) => {
     const { imei } = req.params;
     const result = Database.purgeSimulationData(imei);

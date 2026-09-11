@@ -15,6 +15,10 @@ const HistoryStudio = {
   trips: [],
   dailySummaries: [],
   rawCanHistory: [],
+  fuelBurnRecords: [],
+  fuelBurnTotal: 0,
+  fuelBurnPage: 1,
+  fuelBurnLimit: 50,
   playbackIndex: 0,
   isPlaying: false,
   playSpeed: 1, // 1x, 2x, 5x, 10x, 20x
@@ -192,12 +196,13 @@ const HistoryStudio = {
     if (loadingOverlay) loadingOverlay.style.display = 'flex';
 
     try {
-      const [playbackRes, tripsRes, fuelEventsRes, historyRes, dailyRes] = await Promise.all([
+      const [playbackRes, tripsRes, fuelEventsRes, historyRes, dailyRes, fuelBurnRes] = await Promise.all([
         fetch(`/api/devices/${this.activeImei}/playback?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=4000`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/trips?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=100`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/fuel-events?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}`).then(r => r.json()),
         fetch(`/api/devices/${this.activeImei}/history?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=500`).then(r => r.json()),
-        fetch(`/api/devices/${this.activeImei}/daily-summary?days=7`).then(r => r.json()).catch(() => ({ success: false }))
+        fetch(`/api/devices/${this.activeImei}/daily-summary?days=7`).then(r => r.json()).catch(() => ({ success: false })),
+        fetch(`/api/devices/${this.activeImei}/fuel-burn-history?${fromIso ? `from=${encodeURIComponent(fromIso)}&` : ''}${toIso ? `to=${encodeURIComponent(toIso)}&` : ''}limit=500`).then(r => r.json()).catch(() => ({ success: false }))
       ]);
 
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -215,8 +220,12 @@ const HistoryStudio = {
         gear: p.gearLabel || p.gear || (p.gearNumber ? `${p.gearNumber}` : (p.speed > 0 ? 'D' : 'N'))
       })).filter(p => p.latitude !== 0 && p.longitude !== 0);
 
-      this.trips = (tripsRes.success && tripsRes.data) ? tripsRes.data || [] : [];
-      this.dailySummaries = (dailyRes && dailyRes.success && dailyRes.data && Array.isArray(dailyRes.data.summaries)) ? dailyRes.data.summaries : [];
+      this.trips = (tripsRes.success && tripsRes.data) ? tripsRes.data : [];
+      this.fuelEvents = (fuelEventsRes.success && fuelEventsRes.data?.events) ? fuelEventsRes.data.events : [];
+      this.rawCanHistory = (historyRes.success && historyRes.data) ? historyRes.data : [];
+      this.dailySummaries = (dailyRes.success && dailyRes.data?.summaries) ? dailyRes.data.summaries : [];
+      this.fuelBurnRecords = (fuelBurnRes.success && fuelBurnRes.records) ? fuelBurnRes.records : [];
+      this.fuelBurnTotal = fuelBurnRes.total || this.fuelBurnRecords.length;
 
       const rawFuelEvents = (fuelEventsRes.success && fuelEventsRes.data) ? fuelEventsRes.data.events || [] : [];
       this.fuelEvents = rawFuelEvents.map(e => ({
@@ -224,8 +233,6 @@ const HistoryStudio = {
         latitude: parseFloat(e.latitude !== undefined ? e.latitude : e.lat) || 0,
         longitude: parseFloat(e.longitude !== undefined ? e.longitude : e.lng) || 0
       }));
-
-      this.rawCanHistory = (historyRes.success && historyRes.data) ? historyRes.data || [] : [];
 
       // Update Summary Statistics Banner
       this.renderSummaryStats(playbackRes.data ? playbackRes.data.summary : null, fuelEventsRes.data ? fuelEventsRes.data.summary : null);
@@ -239,6 +246,7 @@ const HistoryStudio = {
       this.renderDailyLedgerList();
       this.renderFuelEventsList();
       this.renderCanDataTable();
+      this.renderFuelBurnTable();
 
     } catch (err) {
       if (loadingOverlay) loadingOverlay.style.display = 'none';
@@ -922,6 +930,208 @@ const HistoryStudio = {
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     const filename = `Traxen_CAN_History_${(this.activeVehicle.vehicleNumber || this.activeImei).replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  },
+
+  // -------------------------------------------------------------
+  // FUEL BURN & INJECTION COMBUSTION LOG METHODS
+  // -------------------------------------------------------------
+  async fetchFuelBurnHistory() {
+    const fromVal = document.getElementById('histFromDate')?.value;
+    const toVal = document.getElementById('histToDate')?.value;
+    const fromIso = fromVal ? new Date(fromVal).toISOString() : null;
+    const toIso = toVal ? new Date(toVal).toISOString() : null;
+    const stateFilter = document.getElementById('histFuelBurnStateFilter')?.value || '';
+    const speedFilter = document.getElementById('histFuelBurnSpeedFilter')?.value || '';
+
+    let minSpeed = null;
+    if (speedFilter === 'moving') minSpeed = 5;
+    else if (speedFilter === 'highway') minSpeed = 50;
+
+    const offset = (this.fuelBurnPage - 1) * this.fuelBurnLimit;
+    const url = `/api/devices/${this.activeImei}/fuel-burn-history?limit=${this.fuelBurnLimit}&offset=${offset}${fromIso ? `&from=${encodeURIComponent(fromIso)}` : ''}${toIso ? `&to=${encodeURIComponent(toIso)}` : ''}${stateFilter ? `&injectionState=${encodeURIComponent(stateFilter)}` : ''}${minSpeed !== null ? `&minSpeed=${minSpeed}` : ''}`;
+
+    try {
+      const res = await fetch(url).then(r => r.json());
+      if (res.success) {
+        this.fuelBurnRecords = res.records || [];
+        this.fuelBurnTotal = res.total || this.fuelBurnRecords.length;
+        this.renderFuelBurnTable();
+      }
+    } catch (err) {
+      console.error('Error fetching fuel burn history:', err);
+    }
+  },
+
+  filterFuelBurnLog() {
+    this.fuelBurnPage = 1;
+    this.fetchFuelBurnHistory();
+  },
+
+  changeFuelBurnPage(dir) {
+    const maxPages = Math.ceil(this.fuelBurnTotal / this.fuelBurnLimit) || 1;
+    const newPage = this.fuelBurnPage + dir;
+    if (newPage >= 1 && newPage <= maxPages) {
+      this.fuelBurnPage = newPage;
+      this.fetchFuelBurnHistory();
+    }
+  },
+
+  renderFuelBurnTable() {
+    const tbody = document.getElementById('histFuelBurnTableBody');
+    if (!tbody) return;
+
+    if (!this.fuelBurnRecords || this.fuelBurnRecords.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 24px;">No fuel combustion records found for this period.</td></tr>`;
+      return;
+    }
+
+    // Update Quick Metric Highlights
+    let sumRate = 0, peakRate = 0, bestMileage = 0, totalBurned = 0;
+    this.fuelBurnRecords.forEach(r => {
+      const fr = r.fuelRateLitersPerHour || 0;
+      sumRate += fr;
+      if (fr > peakRate) peakRate = fr;
+      if (r.instantMileage > bestMileage && r.instantMileage < 120) bestMileage = r.instantMileage;
+      if (r.totalFuelConsumedLiters > totalBurned) totalBurned = r.totalFuelConsumedLiters;
+    });
+
+    const avgRate = (sumRate / Math.max(1, this.fuelBurnRecords.length)).toFixed(2);
+    const elAvg = document.getElementById('burnAvgRate');
+    const elPeak = document.getElementById('burnPeakRate');
+    const elBest = document.getElementById('burnBestMileage');
+    const elTotal = document.getElementById('burnTotalFuel');
+    const elCount = document.getElementById('burnTotalRecords');
+
+    if (elAvg) elAvg.innerText = `${avgRate} L/h`;
+    if (elPeak) elPeak.innerText = `${peakRate.toFixed(2)} L/h`;
+    if (elBest) elBest.innerText = `${bestMileage.toFixed(1)} km/L`;
+    if (elTotal) elTotal.innerText = `${totalBurned.toFixed(2)} L`;
+    if (elCount) elCount.innerText = `${this.fuelBurnTotal.toLocaleString()}`;
+
+    // Pagination info
+    const startIdx = (this.fuelBurnPage - 1) * this.fuelBurnLimit + 1;
+    const endIdx = Math.min(this.fuelBurnTotal, startIdx + this.fuelBurnRecords.length - 1);
+    const pagInfo = document.getElementById('fuelBurnPaginationInfo');
+    if (pagInfo) pagInfo.innerText = `Showing ${startIdx} to ${endIdx} of ${this.fuelBurnTotal} combustion records (Page ${this.fuelBurnPage} of ${Math.ceil(this.fuelBurnTotal / this.fuelBurnLimit) || 1})`;
+
+    const prevBtn = document.getElementById('fuelBurnPrevBtn');
+    const nextBtn = document.getElementById('fuelBurnNextBtn');
+    if (prevBtn) prevBtn.disabled = this.fuelBurnPage <= 1;
+    if (nextBtn) nextBtn.disabled = endIdx >= this.fuelBurnTotal;
+
+    tbody.innerHTML = this.fuelBurnRecords.map((r, i) => {
+      const d = new Date(r.timestamp);
+      const istTime = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const istDate = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      
+      let stateClass = 'status-moving';
+      let stateBg = 'rgba(34, 197, 94, 0.15)';
+      let stateColor = '#22c55e';
+      if (r.injectionState === 'IDLE_INJECTION') {
+        stateClass = 'status-idle';
+        stateBg = 'rgba(234, 179, 8, 0.15)';
+        stateColor = '#eab308';
+      } else if (r.injectionState === 'DECELERATION_CUTOFF') {
+        stateBg = 'rgba(56, 189, 248, 0.15)';
+        stateColor = '#38bdf8';
+      } else if (r.injectionState === 'HIGH_LOAD_BOOST') {
+        stateClass = 'status-stopped';
+        stateBg = 'rgba(239, 68, 68, 0.15)';
+        stateColor = '#ef4444';
+      } else if (r.injectionState === 'ENGINE_OFF') {
+        stateBg = 'rgba(148, 163, 184, 0.15)';
+        stateColor = '#94a3b8';
+      }
+
+      const flowRate = r.fuelRateLitersPerHour ? `${r.fuelRateLitersPerHour.toFixed(2)} L/h` : '0.00 L/h';
+      const instantM = (r.instantMileage > 0 && r.instantMileage < 150) ? `${r.instantMileage.toFixed(1)} km/L` : '--';
+      const odoFormatted = r.totalMileageCan ? `${Number(r.totalMileageCan).toLocaleString()} km` : '--';
+      const locStr = (r.lat && r.lng) ? `${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}` : '--';
+
+      return `
+        <tr>
+          <td style="color: var(--text-muted); font-size: 0.72rem;">${startIdx + i}</td>
+          <td style="font-family: var(--font-mono); font-weight: 700; white-space: nowrap;">${istDate} ${istTime}</td>
+          <td><span style="font-weight: 800; color: #fff;">${Math.round(r.speed || 0)}</span> <small style="color: var(--text-muted);">km/h</small></td>
+          <td style="font-family: var(--font-mono); color: var(--text-secondary);">${r.rpm || 0}</td>
+          <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${flowRate}</td>
+          <td>
+            <span class="badge-pill" style="background: ${stateBg}; color: ${stateColor}; font-size: 0.72rem; padding: 2px 8px; border-radius: 10px; font-weight: 700; white-space: nowrap;">
+              ${r.injectionStateBadge || r.injectionState}
+            </span>
+          </td>
+          <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
+          <td style="color: var(--traxen-primary-light); font-weight: 700; font-family: var(--font-mono);">${r.stepFuelMl || 0} ml</td>
+          <td style="color: var(--traxen-amber-light); font-family: var(--font-mono);">₹ ${(r.costPerKm || 0).toFixed(2)}</td>
+          <td style="font-family: var(--font-mono); color: var(--text-secondary); font-size: 0.75rem;">${odoFormatted}</td>
+          <td style="color: #38bdf8; font-weight: 700;">${r.fuelLiters ? `${r.fuelLiters.toFixed(1)} L` : '--'} <small style="color: var(--text-muted);">(${r.fuelPercentage || 0}%)</small></td>
+          <td style="font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap;">${locStr}</td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  exportFuelBurnCSV() {
+    if (!this.fuelBurnRecords || this.fuelBurnRecords.length === 0) {
+      alert('No fuel combustion records available to export.');
+      return;
+    }
+
+    const headers = [
+      'Timestamp (ISO)',
+      'Time (IST)',
+      'Vehicle Number',
+      'IMEI',
+      'Speed (km/h)',
+      'Engine RPM',
+      'Fuel Rate (L/h)',
+      'Injection State',
+      'Instant Mileage (km/L)',
+      'Step Burn (ml in 10s)',
+      'Trip Fuel Consumed (L)',
+      'Cost per KM (INR)',
+      'CAN Odometer (km)',
+      'Tank Fuel (Liters)',
+      'Tank Percent (%)',
+      'Latitude',
+      'Longitude'
+    ];
+
+    const rows = this.fuelBurnRecords.map(r => {
+      const d = new Date(r.timestamp);
+      const istTime = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return [
+        r.timestamp,
+        istTime,
+        this.activeVehicle.vehicleNumber || this.activeVehicle.numberPlate,
+        this.activeImei,
+        r.speed || 0,
+        r.rpm || 0,
+        r.fuelRateLitersPerHour || 0,
+        `"${r.injectionState || ''}"`,
+        r.instantMileage || 0,
+        r.stepFuelMl || 0,
+        r.totalFuelConsumedLiters || 0,
+        r.costPerKm || 0,
+        r.totalMileageCan || 0,
+        r.fuelLiters || 0,
+        r.fuelPercentage || 0,
+        r.lat || '',
+        r.lng || ''
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + 
+      [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const filename = `Traxen_Fuel_Burn_Combustion_Log_${(this.activeVehicle.vehicleNumber || this.activeImei).replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();

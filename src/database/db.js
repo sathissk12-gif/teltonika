@@ -832,6 +832,118 @@ const Database = {
     }
   },
 
+  // -------------------------------------------------------------
+  // 2B. DETAILED FUEL BURN & INJECTION COMBUSTION AUDIT
+  // -------------------------------------------------------------
+  getFuelBurnHistory(imei, { from = null, to = null, limit = 500, offset = 0, injectionState = null, minSpeed = null } = {}) {
+    try {
+      let query = `SELECT * FROM can_telemetry_history WHERE imei = ?`;
+      const params = [imei];
+
+      if (from) {
+        query += ` AND timestamp >= ?`;
+        params.push(new Date(from).toISOString());
+      }
+      if (to) {
+        query += ` AND timestamp <= ?`;
+        params.push(new Date(to).toISOString());
+      }
+      if (minSpeed !== null && !isNaN(minSpeed)) {
+        query += ` AND speed >= ?`;
+        params.push(Number(minSpeed));
+      }
+
+      query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit, 10) || 500, parseInt(offset, 10) || 0);
+
+      const rows = sqliteDb.prepare(query).all(...params);
+
+      // Compute total matching count
+      let countQuery = `SELECT COUNT(*) as total FROM can_telemetry_history WHERE imei = ?`;
+      const countParams = [imei];
+      if (from) { countQuery += ` AND timestamp >= ?`; countParams.push(new Date(from).toISOString()); }
+      if (to) { countQuery += ` AND timestamp <= ?`; countParams.push(new Date(to).toISOString()); }
+      if (minSpeed !== null && !isNaN(minSpeed)) { countQuery += ` AND speed >= ?`; countParams.push(Number(minSpeed)); }
+      const countRes = sqliteDb.prepare(countQuery).get(...countParams);
+
+      const records = rows.map(r => {
+        const speed = r.speed || 0;
+        const rpm = r.engine_rpm || 0;
+        const fuelRate = (r.fuel_rate_liters_per_hour !== null && r.fuel_rate_liters_per_hour !== undefined) 
+          ? r.fuel_rate_liters_per_hour 
+          : 0;
+        const pedal = r.accelerator_pedal || 0;
+        const load = r.engine_load || 0;
+        const ign = Boolean(r.ignition);
+
+        let state = 'OFF';
+        let stateBadge = '⚪ OFF';
+        if (!ign || rpm === 0) {
+          state = 'ENGINE_OFF';
+          stateBadge = '⚪ Engine Off';
+        } else if (speed > 20 && pedal === 0 && rpm > 1100) {
+          state = 'DECELERATION_CUTOFF';
+          stateBadge = '🟢 Fuel Cutoff (0.0 L/h)';
+        } else if (speed === 0 && rpm > 300) {
+          state = 'IDLE_INJECTION';
+          stateBadge = '🟡 Idle Burn';
+        } else if (pedal > 40 || load > 60) {
+          state = 'HIGH_LOAD_BOOST';
+          stateBadge = '🔴 High Load Power';
+        } else {
+          state = 'ACTIVE_INJECTION';
+          stateBadge = '🔵 Active Cruising';
+        }
+
+        const instantMileage = (speed > 0 && fuelRate > 0.05) 
+          ? parseFloat((speed / fuelRate).toFixed(1)) 
+          : (r.instant_mileage || 0);
+
+        // Step fuel burn in milliliters (10s window)
+        const stepFuelMl = parseFloat((fuelRate * (10 / 3600) * 1000).toFixed(1));
+
+        return {
+          id: r.id,
+          imei: r.imei,
+          timestamp: r.timestamp,
+          serverTimestamp: r.server_timestamp,
+          speed: speed,
+          rpm: rpm,
+          fuelRateLitersPerHour: fuelRate,
+          instantMileage: instantMileage,
+          avgMileage: r.avg_mileage || 0,
+          injectionState: state,
+          injectionStateBadge: stateBadge,
+          acceleratorPedal: pedal,
+          engineLoad: load,
+          stepFuelMl: stepFuelMl,
+          totalFuelConsumedLiters: r.trip_fuel || 0,
+          fuelLiters: r.fuel_liters || 0,
+          fuelPercentage: r.fuel_percentage || 0,
+          totalMileageCan: r.total_mileage_can || r.odometer || 0,
+          costPerKm: r.cost_per_km || 0,
+          lat: r.latitude,
+          lng: r.longitude,
+          coolantTemp: r.coolant_temp,
+          gearLabel: r.gear_label || 'N'
+        };
+      });
+
+      const filteredRecords = injectionState 
+        ? records.filter(rec => rec.injectionState === injectionState) 
+        : records;
+
+      return {
+        total: countRes ? countRes.total : filteredRecords.length,
+        count: filteredRecords.length,
+        records: filteredRecords
+      };
+    } catch (err) {
+      console.error('[DB] Error querying fuel burn history:', err.message);
+      return { total: 0, count: 0, records: [] };
+    }
+  },
+
   // CAN Analytics Aggregation over 3-Month Time Windows
   getCanAnalytics(imei, { from = null, to = null, interval = 'hourly' } = {}) {
     const fromTime = from ? new Date(from).toISOString() : new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();

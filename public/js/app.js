@@ -493,6 +493,7 @@ function selectDevice(imei) {
 
   // Fetch and update Daily Ledger in Tab 3
   fetchDailySummaries(imei);
+  fetchLiveFuelBurnStream(imei);
 }
 
 function trackVehicleOnMap(imei) {
@@ -673,6 +674,7 @@ function handleWebSocketMessage(msg) {
       if (window.GaugesController) {
         window.GaugesController.updateGauges(data, dev ? dev.tankCapacity : 50, true);
       }
+      appendLiveFuelBurnStream(data);
     }
   } else if (msg.event === 'device_status') {
     const { imei, status } = msg.data;
@@ -824,6 +826,107 @@ function renderDailySummaries(dailyData) {
   }
 }
 
+async function fetchLiveFuelBurnStream(imei) {
+  if (!imei) return;
+  try {
+    const res = await fetch(`/api/devices/${imei}/fuel-burn-history?limit=15`).then(r => r.json());
+    const tbody = document.getElementById('liveFuelBurnStreamBody');
+    if (tbody && res.success && Array.isArray(res.records)) {
+      if (res.records.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 12px;">Waiting for combustion data stream...</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = res.records.map(r => {
+        const d = new Date(r.timestamp);
+        const timeStr = d.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const speed = Math.round(r.speed || 0);
+        const rpm = r.rpm || 0;
+        const fuelRate = (r.fuelRateLitersPerHour !== undefined && r.fuelRateLitersPerHour !== null) ? Number(r.fuelRateLitersPerHour).toFixed(2) : '0.00';
+        const instantM = (r.instantMileage > 0 && r.instantMileage < 150) ? `${Number(r.instantMileage).toFixed(1)} km/L` : '--';
+
+        let state = r.injectionState || (speed === 0 ? 'IDLE_INJECTION' : 'ACTIVE_INJECTION');
+        let stateBg = 'rgba(34, 197, 94, 0.15)';
+        let stateColor = '#22c55e';
+        let stateLabel = '🔵 Cruising';
+        if (state === 'IDLE_INJECTION') {
+          stateBg = 'rgba(234, 179, 8, 0.15)';
+          stateColor = '#eab308';
+          stateLabel = '🟡 Idle Burn';
+        } else if (state === 'DECELERATION_CUTOFF') {
+          stateBg = 'rgba(56, 189, 248, 0.15)';
+          stateColor = '#38bdf8';
+          stateLabel = '🟢 Cutoff';
+        } else if (state === 'HIGH_LOAD_BOOST') {
+          stateBg = 'rgba(239, 68, 68, 0.15)';
+          stateColor = '#ef4444';
+          stateLabel = '🔴 Boost';
+        }
+
+        return `
+          <tr>
+            <td style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${timeStr}</td>
+            <td style="font-weight: 800; color: #fff;">${speed} <small style="font-size: 0.68rem; color: var(--text-muted);">km/h</small></td>
+            <td style="font-family: var(--font-mono); color: var(--text-secondary);">${rpm}</td>
+            <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${fuelRate} L/h</td>
+            <td><span class="badge-pill" style="background: ${stateBg}; color: ${stateColor}; font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; font-weight: 700;">${stateLabel}</span></td>
+            <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('Error fetching live fuel burn stream:', err);
+  }
+}
+
+function appendLiveFuelBurnStream(data) {
+  const tbody = document.getElementById('liveFuelBurnStreamBody');
+  if (!tbody) return;
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const speed = Math.round(data.speed || 0);
+  const rpm = data.engineRpm || 0;
+  const fuelRate = (data.fuelRateLitersPerHour !== undefined && data.fuelRateLitersPerHour !== null) ? Number(data.fuelRateLitersPerHour).toFixed(2) : '0.00';
+  const instantM = (data.instantMileageKmPerLiter > 0 && data.instantMileageKmPerLiter < 150) ? `${Number(data.instantMileageKmPerLiter).toFixed(1)} km/L` : '--';
+  
+  let state = data.injectionState || (speed === 0 ? 'IDLE_INJECTION' : 'ACTIVE_INJECTION');
+  let stateBg = 'rgba(34, 197, 94, 0.15)';
+  let stateColor = '#22c55e';
+  let stateLabel = '🔵 Cruising';
+  if (state === 'IDLE_INJECTION') {
+    stateBg = 'rgba(234, 179, 8, 0.15)';
+    stateColor = '#eab308';
+    stateLabel = '🟡 Idle Burn';
+  } else if (state === 'DECELERATION_CUTOFF') {
+    stateBg = 'rgba(56, 189, 248, 0.15)';
+    stateColor = '#38bdf8';
+    stateLabel = '🟢 Cutoff';
+  } else if (state === 'HIGH_LOAD_BOOST') {
+    stateBg = 'rgba(239, 68, 68, 0.15)';
+    stateColor = '#ef4444';
+    stateLabel = '🔴 Boost';
+  }
+
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted);">${timeStr}</td>
+    <td style="font-weight: 800; color: #fff;">${speed} <small style="font-size: 0.68rem; color: var(--text-muted);">km/h</small></td>
+    <td style="font-family: var(--font-mono); color: var(--text-secondary);">${rpm}</td>
+    <td style="font-weight: 800; color: #f97316; font-family: var(--font-mono);">${fuelRate} L/h</td>
+    <td><span class="badge-pill" style="background: ${stateBg}; color: ${stateColor}; font-size: 0.68rem; padding: 1px 6px; border-radius: 8px; font-weight: 700;">${stateLabel}</span></td>
+    <td style="font-weight: 800; color: var(--status-moving); font-family: var(--font-mono);">${instantM}</td>
+  `;
+
+  tbody.insertBefore(row, tbody.firstChild);
+
+  // Keep maximum 20 rows
+  while (tbody.children.length > 20) {
+    tbody.removeChild(tbody.lastChild);
+  }
+}
+
 window.App = {
   switchTab,
   selectDevice,
@@ -837,5 +940,7 @@ window.App = {
   closeAddDeviceModal,
   saveNewDevice,
   fetchDailySummaries,
-  renderDailySummaries
+  renderDailySummaries,
+  fetchLiveFuelBurnStream,
+  appendLiveFuelBurnStream
 };
