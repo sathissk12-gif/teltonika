@@ -1409,22 +1409,10 @@ const Database = {
         }
         const dev = cache.devices.get(imei);
         if (dev) {
-          if (dev.lastTelemetry) {
-            dev.lastTelemetry.tripDistance = 0;
-            dev.lastTelemetry.tripDistanceKm = 0;
-            dev.lastTelemetry.tripFuel = 0;
-            dev.lastTelemetry.tripFuelConsumedLiters = 0;
-            dev.lastTelemetry.instantMileage = 0;
-            dev.lastTelemetry.avgMileage = 0;
-            dev.lastTelemetry.avgMileageKmPerLiter = 0;
-            dev.lastTelemetry.costPerKm = 0;
-            dev.lastTelemetry.fuelRateLitersPerHour = 0;
-            dev.lastTelemetry.speed = 0;
-            dev.lastTelemetry.engineRpm = 0;
-            dev.lastTelemetry.currentGear = 0;
-            dev.lastTelemetry.gearLabel = 'N';
-          }
-          preparedStmts.upsertDevice.run(imei, JSON.stringify(dev), dev.status || 'OFFLINE', new Date().toISOString());
+          dev.lastTelemetry = null;
+          dev.status = 'OFFLINE';
+          dev.lastUpdated = new Date().toISOString();
+          preparedStmts.upsertDevice.run(imei, JSON.stringify(dev), 'OFFLINE', dev.lastUpdated);
         }
       } else {
         sqliteDb.prepare(`DELETE FROM can_telemetry_history`).run();
@@ -1434,25 +1422,13 @@ const Database = {
         cache.alerts = [];
         cache.trips = [];
         for (const [devImei, dev] of cache.devices.entries()) {
-          if (dev.lastTelemetry) {
-            dev.lastTelemetry.tripDistance = 0;
-            dev.lastTelemetry.tripDistanceKm = 0;
-            dev.lastTelemetry.tripFuel = 0;
-            dev.lastTelemetry.tripFuelConsumedLiters = 0;
-            dev.lastTelemetry.instantMileage = 0;
-            dev.lastTelemetry.avgMileage = 0;
-            dev.lastTelemetry.avgMileageKmPerLiter = 0;
-            dev.lastTelemetry.costPerKm = 0;
-            dev.lastTelemetry.fuelRateLitersPerHour = 0;
-            dev.lastTelemetry.speed = 0;
-            dev.lastTelemetry.engineRpm = 0;
-            dev.lastTelemetry.currentGear = 0;
-            dev.lastTelemetry.gearLabel = 'N';
-          }
-          preparedStmts.upsertDevice.run(devImei, JSON.stringify(dev), dev.status || 'OFFLINE', new Date().toISOString());
+          dev.lastTelemetry = null;
+          dev.status = 'OFFLINE';
+          dev.lastUpdated = new Date().toISOString();
+          preparedStmts.upsertDevice.run(devImei, JSON.stringify(dev), 'OFFLINE', dev.lastUpdated);
         }
       }
-      return { success: true, message: 'Simulation test history purged successfully.' };
+      return { success: true, message: 'Simulation test history and cached mock telemetry purged successfully.' };
     } catch (err) {
       console.error('[DB] Error purging simulation data:', err.message);
       return { success: false, error: err.message };
@@ -1614,8 +1590,8 @@ const Database = {
       callAlertEnabled: vehicleData.callAlertEnabled !== undefined ? Boolean(vehicleData.callAlertEnabled) : (existing.callAlertEnabled || false),
       callAlertPhoneNumber: vehicleData.callAlertPhoneNumber !== undefined ? vehicleData.callAlertPhoneNumber : (existing.callAlertPhoneNumber || ''),
       positionStoreIntervalSeconds: parseInt(vehicleData.positionStoreIntervalSeconds, 10) || existing.positionStoreIntervalSeconds || 10,
-      statusRetentionMonths: parseInt(vehicleData.statusRetentionMonths, 10) || existing.statusRetentionMonths || 3,
-      status: existing.status || 'OFFLINE',
+      status: vehicleData.status !== undefined ? vehicleData.status : (existing.status || 'OFFLINE'),
+      lastTelemetry: vehicleData.lastTelemetry !== undefined ? vehicleData.lastTelemetry : (existing.lastTelemetry || null),
       active: true,
       lastUpdated: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

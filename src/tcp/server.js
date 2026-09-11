@@ -327,10 +327,11 @@ class TeltonikaTcpServer {
     const socket = this.activeSockets.get(imei);
     if (socket && !socket.destroyed) return true;
 
-    // Heartbeat Activity Threshold (120 seconds): Periodic GPRS reporting trackers stay ONLINE between send cycles
+    // Real Packet Activity Threshold (120 seconds): Periodic GPRS reporting trackers stay ONLINE between send cycles
     const dev = Database.getDevice(imei);
-    if (dev && dev.lastUpdated) {
-      const elapsed = Date.now() - new Date(dev.lastUpdated).getTime();
+    if (dev && dev.lastTelemetry && (dev.lastTelemetry.serverTimestamp || dev.lastTelemetry.timestamp)) {
+      const ts = dev.lastTelemetry.serverTimestamp || dev.lastTelemetry.timestamp;
+      const elapsed = Date.now() - new Date(ts).getTime();
       return elapsed < 120000;
     }
     return false;
