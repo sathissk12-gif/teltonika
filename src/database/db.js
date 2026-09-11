@@ -1218,22 +1218,41 @@ const Database = {
   },
 
   // -------------------------------------------------------------
-  // 3. DAILY FLEET & FUEL PERFORMANCE LEDGER (Per-Day Run, Fuel & Mileage)
+  // 3. DAILY FLEET & FUEL PERFORMANCE LEDGER (Per-Day Run from 12:00 AM IST Midnight)
   // -------------------------------------------------------------
   getDailySummaries(imei, days = 7) {
     try {
       const dailySummaries = [];
-      const now = new Date();
+      const IST_OFFSET_MS = 5.5 * 3600 * 1000;
+      const nowUtc = Date.now();
+      const nowIst = new Date(nowUtc + IST_OFFSET_MS);
 
       for (let d = 0; d < days; d++) {
-        const targetDate = new Date(now.getTime() - d * 24 * 3600 * 1000);
-        const yyyy = targetDate.getFullYear();
-        const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-        const dd = String(targetDate.getDate()).padStart(2, '0');
+        // Calculate exact 12:00:00 AM Midnight IST for day offset d
+        const istYear = nowIst.getUTCFullYear();
+        const istMonth = nowIst.getUTCMonth();
+        const istDate = nowIst.getUTCDate() - d;
+
+        const midnightIstUtcMs = Date.UTC(istYear, istMonth, istDate, 0, 0, 0, 0) - IST_OFFSET_MS;
+        const endOfDayIstUtcMs = midnightIstUtcMs + (24 * 3600 * 1000) - 1;
+
+        const startIso = new Date(midnightIstUtcMs).toISOString();
+        const endIso = new Date(endOfDayIstUtcMs).toISOString();
+
+        const targetDateObj = new Date(midnightIstUtcMs + IST_OFFSET_MS);
+        const yyyy = targetDateObj.getUTCFullYear();
+        const mm = String(targetDateObj.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(targetDateObj.getUTCDate()).padStart(2, '0');
         const dateStr = `${yyyy}-${mm}-${dd}`;
-        
-        const dayStart = `${dateStr}T00:00:00.000Z`;
-        const dayEnd = `${dateStr}T23:59:59.999Z`;
+
+        let label = dateStr;
+        if (d === 0) label = 'Today (12 AM to Now)';
+        else if (d === 1) label = 'Yesterday';
+        else {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const daysArr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          label = `${daysArr[targetDateObj.getUTCDay()]}, ${dd} ${months[targetDateObj.getUTCMonth()]}`;
+        }
 
         const rows = sqliteDb.prepare(`
           SELECT 
@@ -1243,7 +1262,7 @@ const Database = {
           FROM can_telemetry_history
           WHERE imei = ? AND timestamp >= ? AND timestamp <= ? AND is_valid = 1
           ORDER BY timestamp ASC
-        `).all(imei, dayStart, dayEnd);
+        `).all(imei, startIso, endIso);
 
         let distKm = 0;
         let runningMins = 0;
@@ -1276,7 +1295,7 @@ const Database = {
                         Math.sin(dLon / 2) * Math.sin(dLon / 2);
               const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
               const stepDist = 6371.0 * c;
-              if (stepDist >= 0.003 && (stepDist / dtHours) < 180) {
+              if (stepDist >= 0.003 && (stepDist / dtHours) < 160) {
                 distKm += stepDist;
               }
             } else if (p2.speed > 2 && dtHours < 0.05) {
@@ -1284,7 +1303,7 @@ const Database = {
             }
           }
 
-          // CAN Odometer Cross-Check
+          // CAN Odometer Delta Validation (Difference between midnight start and current end odo)
           const startPt = rows[0];
           const endPt = rows[rows.length - 1];
           const startOdo = startPt.total_mileage_can || startPt.odometer || 0;
@@ -1342,18 +1361,11 @@ const Database = {
         const costPerKm = distKm > 0 ? parseFloat((fuelCost / distKm).toFixed(2)) : 0;
         const avgSpeed = speedCount > 0 ? Math.round(speedSum / speedCount) : 0;
 
-        let label = dateStr;
-        if (d === 0) label = 'Today';
-        else if (d === 1) label = 'Yesterday';
-        else {
-          const dateObj = new Date(targetDate);
-          label = dateObj.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' });
-        }
-
         dailySummaries.push({
           date: dateStr,
           dayIndex: d,
-          label,
+          label: d === 0 ? 'Today' : label,
+          fullLabel: label,
           distanceKm: distKm,
           fuelUsedLiters: fuelUsed,
           mileageKmpl: avgMileage,
@@ -1364,7 +1376,9 @@ const Database = {
           idleMinutes: Math.round(idleMins),
           maxSpeed: Math.round(maxSpeed),
           avgSpeed: avgSpeed,
-          packetCount: rows.length
+          packetCount: rows.length,
+          startTimeIso: startIso,
+          endTimeIso: endIso
         });
       }
 
