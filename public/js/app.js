@@ -798,6 +798,18 @@ function renderDailySummaries(dailyData) {
   if (todayFuelPerKmEl) todayFuelPerKmEl.innerHTML = `${fuelPerKm} <small style="font-size: 0.72rem;">L/km</small>`;
   if (todayCostEl) todayCostEl.innerHTML = `₹ ${cost}`;
 
+  // Update Top Stream Average 1 KM Banner
+  const numFpk = parseFloat(fuelPerKm) || 0.054;
+  const numMpk = (numFpk * 1000).toFixed(1);
+  const elStreamLkm = document.getElementById('liveStreamAvgFuelPerKm');
+  const elStreamMlk = document.getElementById('liveStreamAvgMlPerKm');
+  const elStreamAvgM = document.getElementById('liveStreamAvgMileage');
+  const elStreamCost = document.getElementById('liveStreamCostPerKm');
+  if (elStreamLkm) elStreamLkm.innerText = numFpk.toFixed(3);
+  if (elStreamMlk) elStreamMlk.innerText = `(${numMpk} ml)`;
+  if (elStreamAvgM) elStreamAvgM.innerText = mileage;
+  if (elStreamCost) elStreamCost.innerText = `₹ ${cost}`;
+
   if (tbody && Array.isArray(dailyData.summaries)) {
     tbody.innerHTML = dailyData.summaries.map(s => {
       const isToday = s.dayIndex === 0;

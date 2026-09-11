@@ -157,6 +157,18 @@ function updateGauges(telemetry, tankCapacity = 480, isOnline = true) {
   setCanVal('mileageCostPerKm', costKm);
   setCanVal('mileageRangeVal', estRange);
 
+  // Update Top Stream Average 1 KM Banner
+  const numFpk = parseFloat(fuelPerKm) || 0.054;
+  const numMpk = (numFpk * 1000).toFixed(1);
+  const elStreamLkm = document.getElementById('liveStreamAvgFuelPerKm');
+  const elStreamMlk = document.getElementById('liveStreamAvgMlPerKm');
+  const elStreamAvgM = document.getElementById('liveStreamAvgMileage');
+  const elStreamCost = document.getElementById('liveStreamCostPerKm');
+  if (elStreamLkm) elStreamLkm.innerText = numFpk.toFixed(3);
+  if (elStreamMlk) elStreamMlk.innerText = `(${numMpk} ml)`;
+  if (elStreamAvgM) elStreamAvgM.innerText = avgM;
+  if (elStreamCost) elStreamCost.innerText = costKm;
+
   // 4. Electrical, Body & Comfort CAN Cluster
   const isIgnOn = isOnline && (telemetry.ignition === true || telemetry.ignition === 'ON' || telemetry.ignition === 1 || Number(telemetry.engineRpm) > 300 || Number(telemetry.speed) > 3);
   setCanVal('canIgnition', isIgnOn ? 'IGNITION ON 🟢' : (isOnline ? 'IGNITION OFF' : 'IGNITION OFF (OFFLINE) ⚪'), isIgnOn ? 'active' : 'inactive');
